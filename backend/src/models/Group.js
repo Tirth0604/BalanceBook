@@ -29,7 +29,7 @@ const groupSchema = new mongoose.Schema(
     category: { type: String, enum: groupCategoryValues, default: 'other' },
     imageUrl: { type: String, default: null },
     baseCurrency: { type: String, uppercase: true, minlength: 3, maxlength: 3, default: 'INR' },
-    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     members: {
       type: [memberSchema],
       default: [],

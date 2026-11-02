@@ -117,7 +117,15 @@ expenseSchema.index({ groupId: 1, isDeleted: 1, expenseDate: -1 });
 expenseSchema.index({ groupId: 1, category: 1 });
 expenseSchema.index({ 'participants.userId': 1, expenseDate: -1 });
 expenseSchema.index({ paidBy: 1, expenseDate: -1 });
-expenseSchema.index({ recurrenceId: 1, occurrenceKey: 1 }, { unique: true, sparse: true });
+expenseSchema.index(
+  { recurrenceId: 1, occurrenceKey: 1 },
+  {
+    unique: true,
+    // A sparse compound index would still index {null, null}, so ordinary expenses would
+    // collide with each other; only index documents that actually carry an occurrence key.
+    partialFilterExpression: { occurrenceKey: { $type: 'string' } },
+  },
+);
 expenseSchema.index({ groupId: 1, title: 'text' }, { name: 'expense_title_text' });
 
 /**
