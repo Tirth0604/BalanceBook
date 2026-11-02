@@ -200,10 +200,16 @@ async function loadGroup(groupId, session) {
   return group;
 }
 
-function assertActiveMember(group, userId, label) {
+/**
+ * `paidBy`/participant membership is a property of the submitted body, not of the caller's
+ * rights (the route middleware already proved the caller may act on this group), so it is a
+ * semantic validation failure: 422 VALIDATION_ERROR pointing at the offending field.
+ */
+function assertActiveMember(group, userId, label, path) {
   const member = group.findMember(userId);
   if (!member || member.status !== 'active') {
-    throw ApiError.badRequest(`${label} must be an active member of this group`);
+    const message = `${label} must be an active member of this group`;
+    throw ApiError.unprocessable(message, [{ path, message, code: 'NOT_A_GROUP_MEMBER' }]);
   }
   return member;
 }
@@ -246,6 +252,9 @@ function parseExpenseDate(value) {
  * engine allocate every share. Nothing here trusts a client-computed number.
  */
 function buildExpensePlan({ body, group }) {
+  // Cheap input validation first: a bad date must not be masked by a later money error,
+  // and no financial work is worth doing for a request we already know to be invalid.
+  const expenseDate = parseExpenseDate(body.expenseDate);
   const currencyCode = String(body.currency || group.baseCurrency || 'INR').toUpperCase();
   const totalMinor = runMoneyWork(() => money.toMinor(body.amount, currencyCode));
   if (totalMinor <= 0) {
@@ -268,7 +277,7 @@ function buildExpensePlan({ body, group }) {
   );
 
   const paidBy = toObjectId(body.paidBy, 'paidBy must be a valid user id');
-  assertActiveMember(group, paidBy, 'paidBy');
+  assertActiveMember(group, paidBy, 'paidBy', 'paidBy');
 
   const participants = (body.participants || []).map((participant) => ({
     userId: participant.userId,
@@ -286,7 +295,7 @@ function buildExpensePlan({ body, group }) {
       ]);
     }
     seen.add(participant.userId);
-    assertActiveMember(group, id, 'Every participant');
+    assertActiveMember(group, id, 'Every participant', 'participants');
   }
   if (participants.length === 0) {
     throw ApiError.unprocessable('An expense needs at least one participant', [
@@ -314,7 +323,7 @@ function buildExpensePlan({ body, group }) {
       shareMinor: share.shareMinor,
       percentage: share.percentage ?? null,
     })),
-    expenseDate: parseExpenseDate(body.expenseDate),
+    expenseDate,
     notes: body.notes ?? '',
   };
 }

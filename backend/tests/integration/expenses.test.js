@@ -202,8 +202,31 @@ describe('POST /groups/:groupId/expenses — split engine integration', () => {
 
   it('rejects a paidBy who is not an active member of the group', async () => {
     const res = await createExpense(trip, expenseBody({ paidBy: String(dave._id) }));
-    expect([400, 403]).toContain(res.status);
+    // docs/03: 403 is for the CALLER; a bad body field is semantic validation -> 422.
+    expect(res.status).toBe(422);
     expect(res.body.success).toBe(false);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.details[0].path).toBe('paidBy');
+    expect(res.body.error.message).toMatch(/active member/i);
+  });
+
+  it('rejects a paidBy whose membership is no longer active', async () => {
+    await Group.updateOne(
+      { _id: trip._id },
+      { $set: { 'members.$[m].status': 'inactive' } },
+      { arrayFilters: [{ 'm.userId': carol._id }] },
+    );
+    try {
+      const res = await createExpense(trip, expenseBody({ paidBy: String(carol._id) }));
+      expect(res.status).toBe(422);
+      expect(res.body.error.details[0].path).toBe('paidBy');
+    } finally {
+      await Group.updateOne(
+        { _id: trip._id },
+        { $set: { 'members.$[m].status': 'active' } },
+        { arrayFilters: [{ 'm.userId': carol._id }] },
+      );
+    }
   });
 
   it('rejects a participant who is not an active member of the group', async () => {
@@ -216,7 +239,9 @@ describe('POST /groups/:groupId/expenses — split engine integration', () => {
         ],
       }),
     );
-    expect([400, 403]).toContain(res.status);
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.details[0].path).toBe('participants');
   });
 
   it('snapshots currency conversion fields at write time', async () => {
@@ -243,11 +268,24 @@ describe('POST /groups/:groupId/expenses — split engine integration', () => {
     const res = await createExpense(trip, expenseBody({ amount: '10.005' }));
     expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    // the money engine owns per-currency precision; its code must survive the mapping
+    expect(res.body.error.details[0].code).toBe('MONEY_PRECISION');
+    expect(res.body.error.details[0].path).toBe('amount');
   });
 
   it('rejects an expense dated more than one day in the future', async () => {
     const farFuture = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString();
     const res = await createExpense(trip, expenseBody({ expenseDate: farFuture }));
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.details[0].path).toBe('expenseDate');
+  });
+
+  it('checks the expense date before running any money work', async () => {
+    // Both fields are invalid; the cheap input check must win so the client is not told
+    // about a split that was never attempted.
+    const farFuture = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString();
+    const res = await createExpense(trip, expenseBody({ amount: '10.005', expenseDate: farFuture }));
     expect(res.status).toBe(422);
     expect(res.body.error.details[0].path).toBe('expenseDate');
   });
@@ -256,6 +294,9 @@ describe('POST /groups/:groupId/expenses — split engine integration', () => {
     const res = await createExpense(trip, expenseBody(), dave);
     expect(res.status).toBe(403);
     expect(res.body.error.code).toBe('FORBIDDEN');
+    // authorization runs ahead of the resource: nothing about the group leaks back
+    expect(res.body.data).toBeUndefined();
+    expect(JSON.stringify(res.body)).not.toMatch(/Goa Trip/);
   });
 });
 
