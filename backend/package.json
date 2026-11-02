@@ -16,7 +16,6 @@
     "test:unit": "jest --runInBand tests/unit",
     "test:integration": "jest --runInBand tests/integration",
     "test:coverage": "jest --runInBand --coverage",
-    "lint": "eslint src",
     "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
