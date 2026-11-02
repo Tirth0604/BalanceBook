@@ -16,7 +16,8 @@
     "test:unit": "jest --runInBand tests/unit",
     "test:integration": "jest --runInBand tests/integration",
     "test:coverage": "jest --runInBand --coverage",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
