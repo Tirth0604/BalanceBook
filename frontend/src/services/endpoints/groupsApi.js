@@ -38,6 +38,9 @@ export const groupsApi = createApi({
     }),
     getGroup: builder.query({
       query: (groupId) => `/groups/${groupId}`,
+      // The detail endpoint returns { group }, while every consumer treats this query's
+      // result as the group itself; unwrap here so no page has to remember the nesting.
+      transformResponse: (response) => response?.group ?? response ?? null,
       providesTags: (_r, _e, groupId) => [{ type: 'GroupDetail', id: String(groupId) }],
     }),
     updateGroup: builder.mutation({

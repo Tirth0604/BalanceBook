@@ -29,7 +29,7 @@ import { resolveRange, formatDate, relativeTime, monthKey } from '@/lib/dates'
 import { useMinDuration } from '@/hooks/useMinDuration'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { useGetMySummaryQuery } from '@/services/endpoints/balancesApi'
-import { useOverviewQuery } from '@/services/endpoints/analyticsApi'
+import { useOverviewQuery, useCategoriesQuery } from '@/services/endpoints/analyticsApi'
 import { useListExpensesQuery } from '@/services/endpoints/expensesApi'
 import { useListGroupsQuery } from '@/services/endpoints/groupsApi'
 import { useListMySettlementsQuery } from '@/services/endpoints/settlementsApi'
@@ -42,21 +42,31 @@ export default function Dashboard() {
 
   const summary = useGetMySummaryQuery(undefined, { pollingInterval: 0 })
   const overview = useOverviewQuery(rangeQuery)
+  const categoryQuery = useCategoriesQuery(rangeQuery)
   const recent = useListExpensesQuery({ limit: 5, sort: '-expenseDate' })
   const groups = useListGroupsQuery({ archived: 'false', limit: 4, sort: '-createdAt' })
   const pending = useListMySettlementsQuery({ status: 'awaiting_confirmation', direction: 'to_me', limit: 5 })
 
   const loading = useMinDuration(
-    summary.isLoading || overview.isLoading || recent.isLoading || groups.isLoading,
+    summary.isLoading || overview.isLoading || categoryQuery.isLoading || recent.isLoading || groups.isLoading,
     300,
   )
 
   const s = summary.data
   const o = overview.data ?? {}
-  const currency = s?.currency || o?.currency || 'INR'
-  const categories = normaliseCategories(o)
+  const totals = o?.totals ?? {}
+  const currency = s?.currency || o?.scope?.currency || o?.currency || 'INR'
+  const categories = normaliseCategories(categoryQuery.data ?? {})
   const monthly = normaliseMonthly(o, currency)
-  const totalSpentMinor = pickNumber(o, ['totalSpentMinor', 'spentMinor', 'totalMinor'])
+  // Minor units in different currencies cannot be added, so a viewer with groups in more
+  // than one currency sees their own currency's slice instead of a silently wrong sum.
+  const mixedCurrency = Boolean(o?.scope?.mixedCurrency)
+  const ownCurrencySpend = mixedCurrency
+    ? (totals.byCurrency ?? []).find((row) => row.currency === currency)
+    : null
+  const totalSpentMinor = ownCurrencySpend
+    ? Number(ownCurrencySpend.totalMinor)
+    : pickNumber(totals, ['spentMinor', 'totalSpentMinor', 'totalMinor'])
 
   if (summary.isError && overview.isError) {
     return (
@@ -134,7 +144,7 @@ export default function Dashboard() {
           <StatTile
             label="Spent in range"
             value={<Money minor={totalSpentMinor ?? 0} currency={currency} compact className="font-display text-[30px] font-semibold" />}
-            hint={`${o?.expenseCount ?? '—'} expenses · ${rangeLabel(range.key)}`}
+            hint={`${totals.expenseCount ?? '—'} expenses · ${rangeLabel(range.key)}${ownCurrencySpend ? ` · ${currency} groups` : ''}`}
             icon={Wallet}
           />
         </div>
@@ -165,7 +175,11 @@ export default function Dashboard() {
             <Card>
               <CardHeader>
                 <CardTitle>Where it went</CardTitle>
-                <CardDescription>By category, in your range</CardDescription>
+                <CardDescription>
+                  {mixedCurrency
+                    ? `By category · combines ${(o?.scope?.currencies ?? []).join(' + ')} minor units`
+                    : 'By category, in your range'}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {loading ? (
@@ -351,7 +365,7 @@ function normaliseMonthly(o, _currency) {
   if (!Array.isArray(raw)) return []
   return raw
     .map((m) => ({
-      label: m.label ?? m.month ?? monthKey(m.date ?? m.key) ?? '',
+      label: m.label ?? m.period ?? m.month ?? monthKey(m.date ?? m.key) ?? '',
       value: Number(m.totalMinor ?? m.minor ?? m.value ?? 0),
     }))
     .filter((m) => m.label)
