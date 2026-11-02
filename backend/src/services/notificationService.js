@@ -79,7 +79,22 @@ async function listForUser(userId, query = {}) {
     Notification.find(filter).sort(sort).skip(skip).limit(limit),
     Notification.countDocuments(filter),
   ]);
-  return { items, meta: buildMeta({ page, limit, total }) };
+  // Clients address a notification by `id` (docs/03 /notifications/:id), so the Mongo
+  // `_id` must not be the only identifier on the wire.
+  return {
+    items: items.map((notification) => ({
+      id: String(notification._id),
+      groupId: notification.groupId ? String(notification.groupId) : null,
+      type: notification.type,
+      title: notification.title,
+      body: notification.body,
+      payload: notification.payload ?? null,
+      isRead: notification.isRead,
+      readAt: notification.readAt ?? null,
+      createdAt: notification.createdAt,
+    })),
+    meta: buildMeta({ page, limit, total }),
+  };
 }
 
 async function unreadCount(userId) {
