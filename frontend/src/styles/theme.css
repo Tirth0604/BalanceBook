@@ -1,0 +1,309 @@
+/* ============================================================================
+   BalanceBook design system — docs/06-design-system.md
+   Three layers: primitive (--bb-*) → semantic (:root / .dark) → @theme inline
+   (Tailwind v4 mapping). Raw hex lives ONLY in this file.
+   ========================================================================== */
+
+@custom-variant dark (&:is(.dark *));
+
+/* ---------------------------------------------------------------- Layer 1: primitives */
+:root {
+  --bb-navy-900: #0B1524;
+  --bb-navy-800: #122036;
+  --bb-slate-600: #4A5B72;
+  --bb-slate-400: #8A99AD;
+  --bb-line: #E3E8EF;
+  --bb-canvas: #F6F7F9;
+  --bb-surface: #FFFFFF;
+  --bb-surface-sunken: #F1F4F8;
+  --bb-indigo-600: #4F46E5;
+  --bb-indigo-700: #4338CA;
+  --bb-indigo-50: #EEF0FE;
+  --bb-emerald-600: #059669;
+  --bb-emerald-50: #ECFDF5;
+  --bb-rose-600: #E11D48;
+  --bb-rose-50: #FFF1F3;
+  --bb-amber-500: #D97706;
+  --bb-sky-500: #0284C7;
+
+  /* chart series — fixed order, max 10 categories */
+  --bb-chart-1: #4F46E5;
+  --bb-chart-2: #0D9488;
+  --bb-chart-3: #D97706;
+  --bb-chart-4: #E11D48;
+  --bb-chart-5: #7C3AED;
+  --bb-chart-6: #0284C7;
+  --bb-chart-7: #65A30D;
+  --bb-chart-8: #64748B;
+  --bb-chart-9: #DB2777;
+  --bb-chart-10: #0891B2;
+
+  /* typefaces */
+  --bb-font-display: "Sora", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --bb-font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* elevation — never more than 3 layers */
+  --bb-shadow-sm: 0 1px 2px rgb(11 21 36 / 0.05);
+  --bb-shadow-md: 0 2px 4px rgb(11 21 36 / 0.04), 0 8px 24px -12px rgb(11 21 36 / 0.12);
+  --bb-shadow-lg: 0 12px 40px -12px rgb(11 21 36 / 0.22);
+
+  /* motion */
+  --bb-motion-colors: 150ms;
+  --bb-motion-entrance: 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* ---------------------------------------------------------------- Layer 2: semantics */
+:root {
+  --background: var(--bb-canvas);
+  --foreground: var(--bb-navy-800);
+  --card: var(--bb-surface);
+  --card-foreground: var(--bb-navy-800);
+  --muted: var(--bb-surface-sunken);
+  --muted-foreground: var(--bb-slate-600);
+  --caption: var(--bb-slate-400);
+  --border: var(--bb-line);
+  --input: var(--bb-line);
+  --ring: var(--bb-indigo-600);
+
+  --primary: var(--bb-indigo-600);
+  --primary-hover: var(--bb-indigo-700);
+  --primary-foreground: #FFFFFF;
+  --primary-muted: var(--bb-indigo-50);
+
+  /* receivable — money coming to you */
+  --success: var(--bb-emerald-600);
+  --success-muted: var(--bb-emerald-50);
+  --success-foreground: var(--bb-emerald-600);
+
+  /* payable — money going out */
+  --danger: var(--bb-rose-600);
+  --danger-muted: var(--bb-rose-50);
+  --danger-foreground: var(--bb-rose-600);
+
+  --warning: var(--bb-amber-500);
+  --warning-muted: #FDF6EC;
+  --info: var(--bb-sky-500);
+  --info-muted: #EBF5FC;
+
+  --chart-1: var(--bb-chart-1);
+  --chart-2: var(--bb-chart-2);
+  --chart-3: var(--bb-chart-3);
+  --chart-4: var(--bb-chart-4);
+  --chart-5: var(--bb-chart-5);
+  --chart-6: var(--bb-chart-6);
+  --chart-7: var(--bb-chart-7);
+  --chart-8: var(--bb-chart-8);
+  --chart-9: var(--bb-chart-9);
+  --chart-10: var(--bb-chart-10);
+}
+
+/* Dark mode inverts the semantic layer only; components never change. */
+.dark {
+  --background: #0B1524;
+  --foreground: #E7EDF6;
+  --card: #12203B;
+  --card-foreground: #E7EDF6;
+  --muted: #182A47;
+  --muted-foreground: #9FB0C6;
+  --caption: #6E819C;
+  --border: #22304A;
+  --input: #22304A;
+  --ring: #8B93F8;
+
+  --primary: #8B93F8;
+  --primary-hover: #A3A9FB;
+  --primary-foreground: #0B1524;
+  --primary-muted: #1D2452;
+
+  --success: #34D399;
+  --success-muted: #0D2A22;
+  --success-foreground: #6EE7B7;
+
+  --danger: #FB7185;
+  --danger-muted: #331421;
+  --danger-foreground: #FDA4AF;
+
+  --warning: #F59E0B;
+  --warning-muted: #332308;
+  --info: #38BDF8;
+  --info-muted: #0B2740;
+
+  --bb-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.35);
+  --bb-shadow-md: 0 2px 4px rgb(0 0 0 / 0.25), 0 8px 24px -12px rgb(0 0 0 / 0.45);
+  --bb-shadow-lg: 0 12px 40px -12px rgb(0 0 0 / 0.6);
+}
+
+/* ------------------------------------------------- Layer 3: Tailwind v4 mapping */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-caption: var(--caption);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-muted: var(--primary-muted);
+
+  --color-success: var(--success);
+  --color-success-muted: var(--success-muted);
+  --color-success-foreground: var(--success-foreground);
+
+  --color-danger: var(--danger);
+  --color-danger-muted: var(--danger-muted);
+  --color-danger-foreground: var(--danger-foreground);
+
+  --color-warning: var(--warning);
+  --color-warning-muted: var(--warning-muted);
+  --color-info: var(--info);
+  --color-info-muted: var(--info-muted);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
+  --color-chart-9: var(--chart-9);
+  --color-chart-10: var(--chart-10);
+
+  /* primitives that legitimately appear in components (overlay scrim) */
+  --color-navy-900: var(--bb-navy-900);
+
+  --font-sans: var(--bb-font-sans);
+  --font-display: var(--bb-font-display);
+
+  /* radius: control 10 · card 14 · sheet/dialog 18 · pill 999 */
+  --radius-control: 10px;
+  --radius-card: 14px;
+  --radius-sheet: 18px;
+  --radius-pill: 999px;
+
+  /* elevation */
+  --shadow-sm: var(--bb-shadow-sm);
+  --shadow-md: var(--bb-shadow-md);
+  --shadow-lg: var(--bb-shadow-lg);
+
+  /* motion utilities */
+  --animate-shimmer: bb-shimmer 1.4s linear infinite;
+  --animate-fade-in: bb-fade-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-scale-in: bb-scale-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-slide-up: bb-slide-up 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-slide-right: bb-slide-right 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-slide-left: bb-slide-left 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-slide-down: bb-slide-down 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  @keyframes bb-shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  @keyframes bb-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes bb-scale-in {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes bb-slide-up {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes bb-slide-right {
+    from { opacity: 0; transform: translateX(-16px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes bb-slide-left {
+    from { opacity: 0; transform: translateX(16px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes bb-slide-down {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+/* ---------------------------------------------------------------- base layer */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--bb-font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    min-height: 100dvh;
+  }
+  h1, h2, h3, h4 {
+    font-family: var(--bb-font-display);
+    color: var(--foreground);
+    letter-spacing: -0.015em;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background-color: var(--primary-muted);
+    color: var(--foreground);
+  }
+  input, textarea, select, button {
+    font: inherit;
+  }
+  [hidden] { display: none !important; }
+}
+
+/* ---------------------------------------------------------------- utilities */
+@layer utilities {
+  /* every amount gets tabular numerals so columns of rupees align */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .skeleton {
+    background-image: linear-gradient(
+      90deg,
+      var(--muted) 0%,
+      color-mix(in srgb, var(--muted) 55%, var(--border)) 50%,
+      var(--muted) 100%
+    );
+    background-size: 200% 100%;
+    animation: var(--animate-shimmer);
+    border-radius: 8px;
+  }
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+}
+
+/* ---------------------------------------------------------------- motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}
