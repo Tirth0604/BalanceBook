@@ -10,7 +10,7 @@
 export const appRoutes = [
   { path: 'dashboard', page: ['Dashboard'], label: 'Dashboard' },
   { path: 'groups', page: ['Groups'], label: 'My Groups' },
-  { path: 'groups/:groupId', page: ['GroupDetail', 'GroupDetails'], label: 'Group' },
+  { path: 'groups/:groupId', page: ['GroupDetails'], label: 'Group' },
   { path: 'expenses', page: ['Expenses'], label: 'Expenses' },
   { path: 'expenses/new', page: ['AddExpense'], label: 'Add expense' },
   { path: 'balances', page: ['Balances'], label: 'Balances' },

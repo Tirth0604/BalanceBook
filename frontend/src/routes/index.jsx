@@ -11,17 +11,8 @@ import NotFound from '@/pages/NotFound'
  * break the bundle: a route wired to `['Expenses']` activates as soon as
  * pages/Expenses.jsx exists and falls back to the honest NotFound state
  * ("still being built") until then.
- *
- * Shadowed duplicates are excluded: `groups/:groupId` lists
- * ['GroupDetail', 'GroupDetails'] and GroupDetail (this phase) wins, so the
- * parallel-phase GroupDetails.jsx is unreachable dead code. A blanket glob
- * would still pull it into the build graph, and it statically imports
- * components that phase has not authored yet (insights/RecurrenceList,
- * budgets/BudgetProgress) — which would fail the production build. Keep
- * unreachable page files out of the bundle; when the lead promotes a page,
- * drop its negation so it becomes reachable.
  */
-const pageModules = import.meta.glob(['../pages/*.jsx', '!../pages/GroupDetails.jsx'])
+const pageModules = import.meta.glob('../pages/*.jsx')
 
 function resolvePage(candidates) {
   for (const name of candidates) {
