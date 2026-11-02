@@ -143,9 +143,10 @@ async function memberNetBalance(groupId, userId) {
   const compute = balanceService && (balanceService.computeGroupBalances || balanceService.getBalances);
   if (typeof compute !== 'function') return null;
   const result = await compute(groupId);
-  const rows = Array.isArray(result) ? result : result?.balances ?? result?.items ?? [];
+  // The balance module answers `{ members: [...] }`; older shapes are tolerated too.
+  const rows = Array.isArray(result) ? result : result?.members ?? result?.balances ?? result?.items ?? [];
   const row = rows.find((item) => {
-    const candidate = item?.userId ?? item?.user?._id ?? item?.user?.id ?? item?.user ?? item?.id;
+    const candidate = item?.userId ?? item?.user?.id ?? item?.user?._id ?? item?.user ?? item?.id;
     return String(candidate) === String(userId);
   });
   if (!row) return 0;
@@ -197,8 +198,10 @@ async function applyInvites({ group, emails, actor, session }) {
   const notFound = [];
 
   const byUserId = new Map(group.members.map((member) => [String(member.userId), member]));
-  const invitedEmails = new Set(
-    group.members.filter((member) => member.invitedEmail).map((member) => String(member.invitedEmail).toLowerCase()),
+  const byInvitedEmail = new Map(
+    group.members
+      .filter((member) => member.invitedEmail)
+      .map((member) => [String(member.invitedEmail).toLowerCase(), member]),
   );
   const openInvites = await Invitation.find({
     groupId: group._id,
@@ -213,27 +216,24 @@ async function applyInvites({ group, emails, actor, session }) {
     const normalised = String(email).toLowerCase();
     const user = await User.findOne({ email: normalised }).session(session ?? null);
     const userId = user ? String(user._id) : null;
-    const existingMember = userId ? byUserId.get(userId) : null;
+    const existing = (userId && byUserId.get(userId)) || byInvitedEmail.get(normalised);
 
-    if (
-      (existingMember && existingMember.status === MEMBER_STATUS.ACTIVE) ||
-      invitedEmails.has(normalised) ||
-      openEmails.has(normalised)
-    ) {
+    // Dedupe per the contract: an active member or an open invitation is "already".
+    if ((existing && existing.status === MEMBER_STATUS.ACTIVE) || openEmails.has(normalised)) {
       already.push({ email: normalised, userId, reason: 'already' });
       continue;
     }
 
-    // A known user joins as an invited member keyed to their real id; an unknown address
-    // gets a placeholder id so the roster can already show it (docs/02-database-schema.md).
-    const memberUserId = userId ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId();
-    if (existingMember) {
-      existingMember.status = MEMBER_STATUS.INVITED;
-      existingMember.invitedEmail = normalised;
-      existingMember.invitedBy = actor._id;
+    if (existing) {
+      // A declined or removed row is revived in place so the roster keeps one row per address.
+      existing.status = MEMBER_STATUS.INVITED;
+      existing.invitedEmail = normalised;
+      existing.invitedBy = actor._id;
     } else {
+      // A known user is keyed to their real id; an unknown address gets a placeholder id so
+      // the roster already shows it (docs/02-database-schema.md).
       group.members.push({
-        userId: memberUserId,
+        userId: new mongoose.Types.ObjectId(userId ?? undefined),
         role: GROUP_ROLE.MEMBER,
         status: MEMBER_STATUS.INVITED,
         invitedEmail: normalised,
@@ -241,22 +241,21 @@ async function applyInvites({ group, emails, actor, session }) {
       });
     }
 
-    const invitation = invitationSeed(group, normalised, actor._id);
-    inviteDocs.push(invitation);
+    inviteDocs.push(invitationSeed(group, normalised, actor._id));
 
-    const record = { email: normalised, userId: userId ?? null };
+    const record = { email: normalised, userId };
     if (userId) invited.push(record);
     else notFound.push({ ...record, reason: 'no-account', placeholderCreated: true });
   }
 
   if (inviteDocs.length) {
     const inserted = await Invitation.insertMany(inviteDocs, { ...sessionOptions(session), ordered: true });
-    const byEmail = new Map(inserted.map((invitation) => [String(invitation.email), invitation]));
-    invited.forEach((item) => {
-      item.inviteId = byEmail.get(item.email)?._id ? String(byEmail.get(item.email)._id) : null;
+    const byEmail = new Map(inserted.map((invitation) => [String(invitation.email), String(invitation._id)]));
+    invited.forEach((record) => {
+      record.inviteId = byEmail.get(record.email) ?? null;
     });
-    notFound.forEach((item) => {
-      item.inviteId = byEmail.get(item.email)?._id ? String(byEmail.get(item.email)._id) : null;
+    notFound.forEach((record) => {
+      record.inviteId = byEmail.get(record.email) ?? null;
     });
     await group.save(sessionOptions(session));
   }

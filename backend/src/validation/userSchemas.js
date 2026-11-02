@@ -3,7 +3,7 @@
 const { z } = require('zod');
 const { field } = require('./authSchemas');
 
-const { text, currency, password, pageQuery } = field;
+const { text, currency, password } = field;
 
 /** Mirrors `User.notificationPreferences`; unknown keys are stripped, not persisted. */
 const notificationPreferences = z.object({

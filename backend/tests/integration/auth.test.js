@@ -29,6 +29,8 @@ const describeApp = app ? describe : describe.skip;
 // eslint-disable-next-line global-require
 const authService = require('../../src/services/authService');
 // eslint-disable-next-line global-require
+const userService = require('../../src/services/userService');
+// eslint-disable-next-line global-require
 const RefreshToken = require('../../src/models/RefreshToken');
 
 let mongod = null;
@@ -321,5 +323,86 @@ describeApp('POST /auth/verify-email', () => {  it('marks the address verified',
 
     const again = await request(app).post(`${API}/auth/verify-email`).send({ token });
     expect(again.status).toBe(400);
+  });
+});
+
+describeApp('User profile routes', () => {
+  it('PATCH /users/me updates the profile and merges notification preferences', async () => {
+    const { token } = await register('patchme@balancebook.app');
+
+    const response = await request(app)
+      .patch(`${API}/users/me`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ phone: '+919999988888', preferredCurrency: 'USD', notificationPreferences: { email: true }, password: 'x' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.user.phone).toBe('+919999988888');
+    expect(response.body.data.user.preferredCurrency).toBe('USD');
+    expect(response.body.data.user.notificationPreferences.email).toBe(true);
+    expect(response.body.data.user.notificationPreferences.inApp).toBe(true);
+  });
+
+  it('POST /users/me/password rotates the password and keeps this session', async () => {
+    const { token, cookie } = await register('pwchange@balancebook.app');
+
+    const refused = await request(app)
+      .post(`${API}/users/me/password`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ currentPassword: 'WrongCurrent@1', newPassword: 'Brand@New99' });
+    expect(refused.status).toBe(401);
+
+    const changed = await request(app)
+      .post(`${API}/users/me/password`)
+      .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', cookie)
+      .send({ currentPassword: PASSWORD, newPassword: 'Brand@New99' });
+    expect(changed.status).toBe(200);
+
+    const refreshed = await request(app).post(`${API}/auth/refresh`).set('Cookie', cookie);
+    expect(refreshed.status).toBe(200);
+
+    const relogin = await request(app)
+      .post(`${API}/auth/login`)
+      .send({ email: 'pwchange@balancebook.app', password: 'Brand@New99' });
+    expect(relogin.status).toBe(200);
+  });
+
+  it('DELETE /users/me soft-deletes the account and revokes its tokens', async () => {
+    const { token, cookie, user } = await register('goodbye@balancebook.app');
+
+    const refused = await request(app)
+      .delete(`${API}/users/me`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ confirm: 'nope' });
+    expect([400, 422]).toContain(refused.status);
+
+    const response = await request(app)
+      .delete(`${API}/users/me`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ confirm: 'DELETE' });
+    expect(response.status).toBe(200);
+    expect(response.body.data.status).toBe('deleted');
+
+    const stored = await mongoose.connection.db.collection('users').findOne({ _id: new mongoose.Types.ObjectId(user.id) });
+    expect(stored.status).toBe('deleted');
+    expect(stored.password).toBeTruthy();
+
+    const reuse = await request(app).post(`${API}/auth/refresh`).set('Cookie', cookie);
+    expect(reuse.status).toBe(401);
+  });
+
+  it('GET /users/search finds an exact email and returns meta', async () => {
+    await register('findme@balancebook.app');
+    const { token } = await register('seeker@balancebook.app');
+
+    const response = await request(app)
+      .get(`${API}/users/search`)
+      .set('Authorization', `Bearer ${token}`)
+      .query({ q: 'findme@balancebook.app' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.map((item) => item.email)).toContain('findme@balancebook.app');
+    expect(response.body.meta.limit).toBeLessThanOrEqual(userService.MAX_SEARCH_RESULTS);
+    expect(response.body.data[0].password).toBeUndefined();
   });
 });

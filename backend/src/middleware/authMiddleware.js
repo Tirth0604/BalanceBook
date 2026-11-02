@@ -1,6 +1,7 @@
 'use strict';
 
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const config = require('../config/env');
 const User = require('../models/User');
 const ApiError = require('../utils/ApiError');
@@ -18,7 +19,14 @@ function signAccessToken(user, extra = {}) {
 }
 
 function verifyAccessToken(token) {
-  const payload = jwt.verify(token, config.JWT_ACCESS_SECRET, { algorithms: ['HS256'] });
+  let payload;
+  try {
+    payload = jwt.verify(token, config.JWT_ACCESS_SECRET, { algorithms: ['HS256'] });
+  } catch {
+    // jsonwebtoken raises JsonWebTokenError / TokenExpiredError; a bad or stale token is an
+    // authentication failure, never a server error, and the reason must not leak to clients.
+    throw ApiError.unauthorized('Authentication required');
+  }
   if (payload.type !== 'access') throw ApiError.unauthorized('Not an access token');
   return payload;
 }
@@ -31,6 +39,7 @@ function readBearer(req) {
 
 async function loadUser(token) {
   const payload = verifyAccessToken(token);
+  if (!mongoose.isValidObjectId(payload.sub)) throw ApiError.unauthorized('Authentication required');
   const user = await User.findById(payload.sub);
   if (!user || user.status !== 'active') throw ApiError.unauthorized('Session is no longer valid');
   return { user, payload };
