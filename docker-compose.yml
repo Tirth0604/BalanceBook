@@ -1,0 +1,29 @@
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: balancebook-mongo
+    restart: unless-stopped
+    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # One-shot initialiser: a fresh replica set has no config until this runs once.
+  mongo-initiate:
+    image: mongo:7.0
+    depends_on:
+      mongodb:
+        condition: service_started
+    restart: "no"
+    entrypoint: >
+      bash -c "sleep 8 && mongosh --host mongodb:27017 --quiet --eval
+      'try { rs.status().ok } catch (e) { rs.initiate({_id:\"rs0\",members:[{_id:0,host:\"mongodb:27017\"}]}).ok }'"
+
+volumes:
+  mongo-data:

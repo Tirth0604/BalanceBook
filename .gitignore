@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+**/.env
+!**/.env.example
+
+# Build output
+dist/
+build/
+coverage/
+**/dist/
+**/build/
+**/coverage/
+
+# Uploads (receipts / avatars stored on local disk in dev)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Logs & scratch
+*.log
+npm-debug.log*
+.vite/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
