@@ -19,7 +19,7 @@ const MOUNTS = [
   ['/groups', './groupRoutes', true],
   ['/groups/:id/balances', './balanceRoutes', true],
   ['/groups/:id/settlements', './groupSettlementRoutes', true],
-  ['/groups/:id/insights', './insightsRoutes', false],
+  ['/groups/:id/insights', './insightRoutes', false],
   ['/groups/:id/recurring', './recurringRoutes', false],
   ['/groups/:id/budgets', './budgetRoutes', false],
   ['/expenses', './expenseRoutes', true],
