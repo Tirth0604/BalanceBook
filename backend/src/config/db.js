@@ -16,9 +16,14 @@ async function detectTransactionSupport() {
   if (!config.USE_TRANSACTIONS) return false;
   const session = await mongoose.startSession();
   try {
+    // An empty transaction commits even on a standalone mongod, so the probe has to write.
+    // On a standalone the write inside the session throws "Transaction numbers are only
+    // allowed on a replica set member or mongos", which is exactly what we are detecting.
+    const probe = mongoose.connection.collection('__balancebook_txn_probe');
     await session.withTransaction(async () => {
-      /* no-op commit */
+      await probe.insertOne({ probedAt: new Date() }, { session });
     });
+    await probe.drop().catch(() => {});
     return true;
   } catch (error) {
     if (config.isDevelopment || config.isTest) {

@@ -55,5 +55,10 @@ for (const [mountPath, moduleId, required] of MOUNTS) {
   loaded.push({ moduleId, router: target });
 }
 
+// The expense module owns both faces of the resource: cross-group reads under /expenses
+// (mounted above) and creation under the group path, per docs/03.
+const expenseRoutes = require('./expenseRoutes');
+router.use('/groups', expenseRoutes.groupScoped);
+
 module.exports = router;
 module.exports.loadedRoutes = loaded.map((entry) => entry.moduleId);
