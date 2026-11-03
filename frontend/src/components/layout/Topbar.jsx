@@ -14,7 +14,9 @@ import UserMenu from './UserMenu'
 export function Topbar({ onOpenMobileNav }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const showSearch = location.pathname.startsWith('/groups')
+  // The search box navigates to /groups?search=…, so it must exist only on the group LIST.
+  // Mounting it on /groups/:id made its debounced first-fire kick users out of the group.
+  const showSearch = /^\/groups\/?$/.test(location.pathname)
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-border bg-card/95 px-4 backdrop-blur-sm sm:px-6">
