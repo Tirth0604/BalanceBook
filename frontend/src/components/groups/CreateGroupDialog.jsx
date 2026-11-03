@@ -21,21 +21,31 @@ import { CURRENCY_CODES } from '@/lib/money'
 import { cn } from '@/lib/utils'
 import { useCreateGroupMutation } from '@/services/endpoints/groupsApi'
 import { useSearchUsersQuery } from '@/services/endpoints/usersApi'
-import { useMetaCategoriesQuery } from '@/services/endpoints/expensesApi'
 import { useToast } from '@/components/ui/toast'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+// Vocabulary accepted by the backend's group category enum (z.enum(groupCategoryValues)).
+// /meta/categories serves EXPENSE categories — sending one of those to POST /groups is a
+// 422 — so the create-group form keeps its own list, identical to the Groups.jsx filter.
+const GROUP_CATEGORY_OPTIONS = [
+  { value: 'other', label: 'Other' },
+  { value: 'trip', label: 'Trip' },
+  { value: 'home', label: 'Home / Roommates' },
+  { value: 'family', label: 'Family' },
+  { value: 'office', label: 'Office' },
+  { value: 'friends', label: 'Friends' },
+]
 
 /** Create-group dialog with invite-by-email (user search + chips). */
 export function CreateGroupDialog({ open, onOpenChange, trigger, defaultCategory, categories }) {
   const toast = useToast()
   const navigate = useNavigate()
   const [createGroup, { isLoading }] = useCreateGroupMutation()
-  const { data: metaCats } = useMetaCategoriesQuery(undefined)
   const [form, setForm] = useState({
     name: '',
     description: '',
-    category: defaultCategory || 'general',
+    category: defaultCategory || 'other',
     baseCurrency: 'INR',
   })
   const [emails, setEmails] = useState([])
@@ -51,14 +61,7 @@ export function CreateGroupDialog({ open, onOpenChange, trigger, defaultCategory
     }
   }, [open])
 
-  const categoryOptions = categories ?? metaCats?.categories ?? [
-    { value: 'general', label: 'General' },
-    { value: 'trip', label: 'Trip' },
-    { value: 'house', label: 'House' },
-    { value: 'food', label: 'Food' },
-    { value: 'flat', label: 'Flatmates' },
-    { value: 'event', label: 'Event' },
-  ]
+  const categoryOptions = categories ?? GROUP_CATEGORY_OPTIONS
 
   const addEmail = (raw) => {
     const email = raw.trim().toLowerCase()
@@ -92,9 +95,11 @@ export function CreateGroupDialog({ open, onOpenChange, trigger, defaultCategory
         baseCurrency: form.baseCurrency,
         members: emails.length ? emails : undefined,
       }).unwrap()
-      toast.success('Group created', `${created?.name ?? 'Your group'} is ready — invite more people any time.`)
+      // POST /groups returns { group: {...} }; unwrap before reading id/name.
+      const createdGroup = created?.group ?? created
+      toast.success('Group created', `${createdGroup?.name ?? 'Your group'} is ready — invite more people any time.`)
       onOpenChange?.(false)
-      if (created?.id) navigate(`/groups/${created.id}`)
+      if (createdGroup?.id) navigate(`/groups/${createdGroup.id}`)
     } catch (err) {
       toast.error('Could not create the group', err?.message)
     }

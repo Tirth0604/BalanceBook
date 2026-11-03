@@ -43,7 +43,9 @@ export const analyticsApi = createApi({
     exportCsv: builder.query({
       query: (params = {}) => ({
         url: `/analytics/export.csv${toQuery(params)}`,
-        responseHandler: 'blob',
+        // function handler: this fetchBaseQuery build only special-cases 'json' and would
+        // hand back a text string for the 'blob' string handler
+        responseHandler: (response) => response.blob(),
       }),
       // blob bodies never match the success envelope, so baseQuery passes them through
       providesTags: [],
@@ -64,7 +66,7 @@ export const {
 export async function downloadCsv(params, accessToken) {
   const path = `/analytics/export.csv${toQuery(params)}`
   const result = await rawBaseQuery(
-    { url: path, responseHandler: 'blob' },
+    { url: path, responseHandler: (response) => response.blob() },
     {
       dispatch: () => {},
       getState: () => ({ auth: { accessToken } }),
@@ -73,7 +75,12 @@ export async function downloadCsv(params, accessToken) {
     {},
   )
   if (result.error || !result.data) throw new Error('Export failed')
-  const url = URL.createObjectURL(result.data)
+  // createObjectURL throws "Overload resolution failed" on anything that is not a
+  // Blob/MediaSource, so normalize before handing the body to the anchor.
+  const blob = result.data instanceof Blob
+    ? result.data
+    : new Blob([typeof result.data === 'string' ? result.data : ''], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
   a.download = `balancebook-${params?.groupId || 'all'}-${Date.now()}.csv`

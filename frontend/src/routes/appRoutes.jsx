@@ -13,6 +13,10 @@ export const appRoutes = [
   { path: 'groups/:groupId', page: ['GroupDetails'], label: 'Group' },
   { path: 'expenses', page: ['Expenses'], label: 'Expenses' },
   { path: 'expenses/new', page: ['AddExpense'], label: 'Add expense' },
+  // Every in-group "Add expense" link targets these; without real entries the router
+  // falls through to the catch-all and the user sees "Page not found" instead of the form.
+  { path: 'groups/:groupId/expenses/new', page: ['AddExpense'], label: 'Add expense' },
+  { path: 'groups/:groupId/expenses/:expenseId/edit', page: ['AddExpense'], label: 'Edit expense' },
   { path: 'balances', page: ['Balances'], label: 'Balances' },
   { path: 'settlements', page: ['Settlements'], label: 'Settlements' },
   { path: 'analytics', page: ['Analytics'], label: 'Analytics' },
