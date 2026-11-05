@@ -60,5 +60,11 @@ for (const [mountPath, moduleId, required] of MOUNTS) {
 const expenseRoutes = require('./expenseRoutes');
 router.use('/groups', expenseRoutes.groupScoped);
 
+// Insights owns both faces too: the group rules under /groups/:id/insights (in MOUNTS above)
+// and the caller's own cross-group scope here. It cannot be a MOUNTS entry because the
+// manifest de-duplicates by module id and would reuse the mergeParams group router.
+const insightRoutes = require('./insightRoutes');
+router.use('/insights', insightRoutes.personal);
+
 module.exports = router;
 module.exports.loadedRoutes = loaded.map((entry) => entry.moduleId);

@@ -10,9 +10,14 @@ export const insightsApi = createApi({
       query: (groupId) => `/groups/${groupId}/insights`,
       providesTags: (_r, _e, groupId) => [{ type: 'Insight', id: String(groupId) }],
     }),
+    // Same rules, no group in the path: the caller's own active memberships are the scope.
+    getMyInsights: builder.query({
+      query: () => '/insights',
+      providesTags: [{ type: 'Insight', id: 'me' }],
+    }),
   }),
 })
 
-export const { useGetInsightsQuery } = insightsApi
+export const { useGetInsightsQuery, useGetMyInsightsQuery } = insightsApi
 
 export default insightsApi

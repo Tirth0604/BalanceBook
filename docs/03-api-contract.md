@@ -165,6 +165,7 @@ Self-payment → 422. Non-member on either side → 403.
 | GET | `/analytics/trend?groupId=&granularity=day|week|month&from=&to=` | line chart |
 | GET | `/analytics/export.csv?groupId=&from=&to=` | CSV download |
 | GET | `/groups/:id/insights` | rule-based smart insights |
+| GET | `/insights?range=` | the same rules over the caller's own account (cross-group, `scope.mode = "me"`) |
 | GET | `/notifications?unread=true&page=` | |
 | GET | `/notifications/unread-count` | |
 | PATCH | `/notifications/:id/read` / `POST /notifications/read-all` | |

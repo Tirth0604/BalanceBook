@@ -16,9 +16,15 @@ const forGroup = asyncHandler(async (req, res) => {
   return ApiResponse.send(res, data);
 });
 
-/** Personal cross-group insights (`scope=me`), driven by the reconciled dashboard rollup. */
+/**
+ * Personal cross-group insights (`scope=me`), driven by the reconciled dashboard rollup.
+ * There is no group in this path and no membership to prove: `personalInsights` passes
+ * `groupId: null`, so analyticsService resolves the scope from the caller's own active
+ * memberships only — one user can never reach another user's ledger through this route.
+ */
 const forMe = asyncHandler(async (req, res) => {
-  const data = await insightsService.personalInsights({ userId: req.userId });
+  const query = req.validatedQuery || req.query;
+  const data = await insightsService.personalInsights({ userId: req.userId, query });
   return ApiResponse.send(res, data);
 });
 

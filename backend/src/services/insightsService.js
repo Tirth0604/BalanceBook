@@ -320,6 +320,8 @@ function ruleBudgetPressure(facts) {
       }. ${over ? 'Adjust the limit or slow the spend down.' : 'A quiet warning, not a charge.'}`,
       metric: {
         budgetId: worst.id,
+        // The budget carries its own unit, so the card can never assume the scope currency.
+        currency: worst.currency,
         percentUsed: worst.percentUsed,
         spentMinor: worst.spentMinor,
         limitMinor: worst.limitMinor,
