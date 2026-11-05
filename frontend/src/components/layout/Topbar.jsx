@@ -37,7 +37,7 @@ export function Topbar({ onOpenMobileNav }) {
             className="w-full"
             ariaLabel="Search groups"
             placeholder="Search groups…"
-            onSearch={(q) => navigate(`/groups?search=${encodeURIComponent(q)}`)}
+            onSearch={(q) => navigate(q ? `/groups?q=${encodeURIComponent(q)}` : '/groups')}
           />
         ) : null}
       </div>
