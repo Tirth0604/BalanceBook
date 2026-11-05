@@ -90,6 +90,8 @@ export default function Expenses() {
 
   const shownTotalMinor = sumMinor(items.map((e) => e.totalMinor))
   const currency = items[0]?.currency || groupQuery.data?.baseCurrency || 'INR'
+  // the count the reader sees is the server's count of matching rows, not this page's length
+  const matchedCount = meta.total ?? items.length
 
   return (
     <div className="space-y-5">
@@ -119,7 +121,7 @@ export default function Expenses() {
           <span aria-live="polite">
             {loading || listQuery.isError
               ? 'Loading your ledger…'
-              : `${meta.total ?? items.length} expense${meta.total === 1 || items.length === 1 ? '' : 's'} match these filters`}
+              : `${matchedCount} expense${matchedCount === 1 ? '' : 's'} match these filters`}
           </span>
           {!loading && !listQuery.isError && items.length ? (
             <span className="tabular">

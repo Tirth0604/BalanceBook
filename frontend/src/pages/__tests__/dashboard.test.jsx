@@ -28,21 +28,59 @@ vi.mock('@/services/endpoints/balancesApi', () => ({
   }),
 }))
 
+/**
+ * Shape copied from `GET /analytics/overview` (backend analyticsService.overview):
+ * every flat number is the reporting-currency slice under `totals`, the donut lives on
+ * `GET /analytics/categories`, and the bar series is `monthlySeries[].period`.
+ * Mutable holder so a single test can swap in a mixed-currency scope.
+ */
+const overviewHolder = {
+  data: {
+    scope: {
+      groupCount: 3,
+      currency: 'INR',
+      reportingCurrency: 'INR',
+      currencies: ['INR'],
+      mixedCurrency: false,
+      window: { preset: '30d', from: '2026-10-03T00:00:00.000Z', to: '2026-11-02T00:00:00.000Z' },
+    },
+    totals: {
+      currency: 'INR',
+      spentMinor: 3000000,
+      spent: '30000.00',
+      expenseCount: 4,
+      byCurrency: [{ currency: 'INR', totalMinor: 3000000, expenseCount: 4 }],
+    },
+    you: { currency: 'INR', paidMinor: 2100000, consumedMinor: 1800000, netMinor: 300000, fundedPercent: 70 },
+    monthlySeries: [
+      { period: '2026-10', totalMinor: 2100000, expenseCount: 3 },
+      { period: '2026-11', totalMinor: 900000, expenseCount: 1 },
+    ],
+  },
+}
+
+/** Shape of `GET /analytics/categories` — the reporting-currency rows only. */
+const categoriesHolder = {
+  data: {
+    currency: 'INR',
+    totalMinor: 3000000,
+    expenseCount: 4,
+    categories: [
+      { category: 'food', label: 'Food', totalMinor: 1800000, percentOfSpend: 60 },
+      { category: 'stay', label: 'Stay', totalMinor: 1200000, percentOfSpend: 40 },
+    ],
+  },
+}
+
 vi.mock('@/services/endpoints/analyticsApi', () => ({
   useOverviewQuery: () => ({
-    data: {
-      totalSpentMinor: 3000000,
-      expenseCount: 4,
-      currency: 'INR',
-      monthlySeries: [
-        { label: 'Oct', totalMinor: 2100000 },
-        { label: 'Nov', totalMinor: 900000 },
-      ],
-      categories: [
-        { name: 'Food', totalMinor: 1800000 },
-        { name: 'Stay', totalMinor: 1200000 },
-      ],
-    },
+    data: overviewHolder.data,
+    isLoading: false,
+    isError: false,
+    refetch: REFETCH,
+  }),
+  useCategoriesQuery: () => ({
+    data: categoriesHolder.data,
     isLoading: false,
     isError: false,
     refetch: REFETCH,
@@ -163,5 +201,31 @@ describe('<Dashboard /> with mocked RTK Query', () => {
     expect(container.querySelectorAll('svg').length).toBeGreaterThan(2) // donut + bars + icons
     expect(screen.getByText('Where it went')).toBeInTheDocument()
     expect(screen.getByText('Monthly spend')).toBeInTheDocument()
+  })
+
+  it('shows the viewer-currency slice, never a cross-currency sum, when the scope is mixed', () => {
+    const plain = overviewHolder.data
+    overviewHolder.data = {
+      ...plain,
+      scope: { ...plain.scope, currency: 'INR', currencies: ['INR', 'USD'], mixedCurrency: true },
+      totals: {
+        ...plain.totals,
+        spentMinor: 3000000,
+        byCurrency: [
+          { currency: 'INR', totalMinor: 3000000, expenseCount: 4 },
+          { currency: 'USD', totalMinor: 500000, expenseCount: 2 },
+        ],
+      },
+    }
+    try {
+      renderDashboard()
+      // paise and cents are different units: the tile is the INR row, not 3,000,000 + 500,000.
+      const tileFor = (label) => screen.getByText(label).closest('div').parentElement
+      expect(tileFor('Spent in range')).toHaveTextContent(formatCompact(3000000, 'INR'))
+      expect(screen.queryByText(formatCompact(3500000, 'INR'))).not.toBeInTheDocument()
+      expect(tileFor('Spent in range')).toHaveTextContent('INR groups')
+    } finally {
+      overviewHolder.data = plain
+    }
   })
 })
