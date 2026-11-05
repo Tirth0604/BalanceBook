@@ -65,10 +65,20 @@ export default function Groups() {
   // navigated into a group; setSearchParams would then resolve against this stale path and
   // push the browser back out of /groups/:id. Only sync while this page is actually mounted.
   const stillOnGroupsList = () => /^\/groups\/?$/.test(window.location.pathname)
+  // Two extra rules keep the address bar honest:
+  //  - the mutation is applied to a COPY, so the outgoing query string can still be compared
+  //    to the current one and a no-op write never reaches React Router;
+  //  - empty values are deleted instead of written, so `/groups` can never end up as
+  //    `/groups?q=` (an empty `q` is the same "no search" state as an absent one).
   const syncParams = (mutate) => {
     if (!stillOnGroupsList()) return
-    mutate(searchParams)
-    setSearchParams(searchParams, { replace: true })
+    const next = new URLSearchParams(searchParams)
+    mutate(next)
+    for (const [key, value] of Array.from(next.entries())) {
+      if (value === '') next.delete(key)
+    }
+    if (next.toString() === searchParams.toString()) return
+    setSearchParams(next, { replace: true })
   }
 
   const closeCreate = (next) => {

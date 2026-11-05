@@ -20,21 +20,34 @@ export function SearchInput({
   const value = controlled ? controlledValue : inner
   const cbRef = useRef(onSearch)
   cbRef.current = onSearch
-  const mounted = useRef(false)
+  // The last text handed to `onSearch`, seeded with the mount value so emitting is a
+  // pure no-op while the text has not changed. A boolean "did we mount yet" flag cannot
+  // work here: StrictMode runs the effect body twice on mount (setup → cleanup → setup),
+  // so the first pass consumes the flag and the second one schedules a spurious
+  // `onSearch('')` that writes empty query params into the URL. Comparing against the
+  // last emitted value is idempotent, so the double pass stays silent.
+  const lastEmitted = useRef(value.trim())
 
   useEffect(() => {
-    // don't emit on first mount; parent already has its own state
-    if (!mounted.current) {
-      mounted.current = true
-      return undefined
-    }
-    const t = setTimeout(() => cbRef.current?.(value.trim()), wait)
+    const next = value.trim()
+    if (next === lastEmitted.current) return undefined
+    const t = setTimeout(() => {
+      // set before emitting: a parent that re-renders with the same text must not
+      // re-schedule a second identical emit.
+      lastEmitted.current = next
+      cbRef.current?.(next)
+    }, wait)
     return () => clearTimeout(t)
   }, [value, wait])
 
+  const emitNow = (next) => {
+    lastEmitted.current = next
+    cbRef.current?.(next)
+  }
+
   const clear = () => {
     if (!controlled) setInner('')
-    cbRef.current?.('')
+    emitNow('')
   }
 
   return (
@@ -45,7 +58,7 @@ export function SearchInput({
         aria-label={ariaLabel}
         value={value}
         onChange={(e) => {
-          if (controlled) cbRef.current?.(e.target.value.trim())
+          if (controlled) emitNow(e.target.value.trim())
           else setInner(e.target.value)
         }}
         placeholder={placeholder}
