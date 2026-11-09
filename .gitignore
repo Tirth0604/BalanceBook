@@ -32,3 +32,12 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# local scratch produced by tooling, never part of the project
+/.qa/
+/at.txt
+/bal.json
+/group.json
+/login.json
+/undefined
+backend/uploads/
