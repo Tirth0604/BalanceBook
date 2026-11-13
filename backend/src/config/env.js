@@ -64,6 +64,13 @@ const schema = z.object({
   SMTP_PASS: z.string().optional(),
   MAIL_FROM: z.string().default('BalanceBook <no-reply@balancebook.app>'),
 
+  BREVO_API_KEY: z.string().optional(),
+  BREVO_SENDER_EMAIL: z.string().optional(),
+  BREVO_SENDER_NAME: z.string().default('BalanceBook'),
+
+  RESEND_API_KEY: z.string().optional(),
+  RESEND_FROM: z.string().default('BalanceBook <onboarding@resend.dev>'),
+
   SEED_PASSWORD: z.string().default('Balance@123'),
   SETTLEMENT_EXACT_MAX_SIZE: z.coerce.number().int().min(2).max(20).default(12),
   LOG_LEVEL: z.enum(['silent', 'error', 'warn', 'info', 'http', 'debug']).default('info'),
