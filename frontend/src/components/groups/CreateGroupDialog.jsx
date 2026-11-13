@@ -87,17 +87,30 @@ export function CreateGroupDialog({ open, onOpenChange, trigger, defaultCategory
   const onSubmit = async (e) => {
     e.preventDefault()
     if (!validate()) return
+
+    // Auto-include any valid email remaining in the input box
+    let finalEmails = [...emails]
+    const pending = emailInput.trim().toLowerCase()
+    if (pending && EMAIL_RE.test(pending) && !finalEmails.includes(pending)) {
+      finalEmails.push(pending)
+    }
+
     try {
       const created = await createGroup({
         name: form.name.trim(),
         description: form.description.trim() || undefined,
         category: form.category,
         baseCurrency: form.baseCurrency,
-        members: emails.length ? emails : undefined,
+        members: finalEmails.length ? finalEmails : undefined,
       }).unwrap()
       // POST /groups returns { group: {...} }; unwrap before reading id/name.
       const createdGroup = created?.group ?? created
-      toast.success('Group created', `${createdGroup?.name ?? 'Your group'} is ready — invite more people any time.`)
+      toast.success(
+        'Group created',
+        finalEmails.length
+          ? `${createdGroup?.name ?? 'Your group'} is ready — invitation emails sent!`
+          : `${createdGroup?.name ?? 'Your group'} is ready — invite more people any time.`,
+      )
       onOpenChange?.(false)
       if (createdGroup?.id) navigate(`/groups/${createdGroup.id}`)
     } catch (err) {

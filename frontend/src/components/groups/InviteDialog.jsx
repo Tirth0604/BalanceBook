@@ -56,19 +56,25 @@ export function InviteDialog({ group, canManage = true, trigger }) {
   }
 
   const send = async () => {
-    if (!emails.length) {
+    let finalEmails = [...emails]
+    const pendingDraft = String(draft ?? '').trim().toLowerCase()
+    if (pendingDraft && EMAIL_RE.test(pendingDraft) && !finalEmails.includes(pendingDraft)) {
+      finalEmails.push(pendingDraft)
+    }
+    if (!finalEmails.length) {
       setError('Add at least one email address.')
       return
     }
     try {
-      const data = await invite({ groupId: group.id, emails }).unwrap()
+      const data = await invite({ groupId: group.id, emails: finalEmails }).unwrap()
       setResult(data)
       setEmails([])
+      setDraft('')
       setError(null)
-      const invited = data?.invited?.length ?? 0
+      const invited = data?.invited?.length ?? finalEmails.length
       toast.success(
-        invited ? `${invited} invited` : 'Invitation recorded',
-        'They accept it from their notifications — balances start at zero for them.',
+        invited ? `${invited} invited` : 'Invitation sent',
+        'Invitation email sent with a direct link to join the group.',
       )
     } catch (err) {
       setError(err?.message || 'The server refused these invitations.')
@@ -76,7 +82,7 @@ export function InviteDialog({ group, canManage = true, trigger }) {
   }
 
   const inviteLink = group?.invitationCode
-    ? `${window.location.origin}/groups/join?code=${group.invitationCode}`
+    ? `${window.location.origin}/join?code=${group.invitationCode}`
     : null
 
   const copy = async (value, label) => {
