@@ -330,17 +330,22 @@ async function forgotPassword(payload) {
     await user.save();
 
     const resetUrl = clientLink('reset-password', token);
+    const template = emailService?.templates ? emailService.templates().resetPassword(token) : null;
     await deliverMail({
       to: email,
-      subject: 'Reset your BalanceBook password',
-      text: `Use this link within 15 minutes to reset your password: ${resetUrl}`,
+      subject: template?.subject || 'Reset your BalanceBook password',
+      text: template?.text || `Use this link within 15 minutes to reset your password: ${resetUrl}`,
+      html: template?.html,
       kind: 'password-reset',
       token,
       url: resetUrl,
       expiresAt: user.passwordResetExpiresAt,
     });
+    console.info(`[auth] password reset email dispatched for ${email}`);
     // Echoing the link is a development convenience only; production returns an opaque ack.
     if (config.isDevelopment) return { resetUrl, expiresAt: user.passwordResetExpiresAt };
+  } else {
+    console.warn(`[auth] password reset requested for unknown or inactive email: ${email}`);
   }
   // Same ack for an unknown address: reset requests must not confirm which emails exist.
   return { sent: true };
