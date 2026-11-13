@@ -40,6 +40,14 @@ const verifyEmail = asyncHandler(async (req, res) => {
   return ApiResponse.send(res, await authService.verifyEmail(bodyOf(req)));
 });
 
+const verifyOtp = asyncHandler(async (req, res) => {
+  return ApiResponse.send(res, await authService.verifyOtp(bodyOf(req), { req, res }));
+});
+
+const resendOtp = asyncHandler(async (req, res) => {
+  return ApiResponse.send(res, await authService.resendOtp(bodyOf(req)));
+});
+
 const me = asyncHandler(async (req, res) => {
   return ApiResponse.send(res, { user: await authService.me(req.userId) });
 });
@@ -52,5 +60,7 @@ module.exports = {
   forgotPassword,
   resetPassword,
   verifyEmail,
+  verifyOtp,
+  resendOtp,
   me,
 };

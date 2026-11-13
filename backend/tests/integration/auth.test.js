@@ -326,6 +326,32 @@ describeApp('POST /auth/verify-email', () => {  it('marks the address verified',
   });
 });
 
+describeApp('POST /auth/verify-otp & /auth/resend-otp', () => {
+  it('verifies user with valid 6-digit OTP and returns access token', async () => {
+    await register('otpuser@balancebook.app');
+    const mail = lastMail('verify-email');
+    expect(mail.otp).toBeDefined();
+    expect(mail.otp).toMatch(/^\d{6}$/);
+
+    const wrong = await request(app)
+      .post(`${API}/auth/verify-otp`)
+      .send({ email: 'otpuser@balancebook.app', otp: '000000' });
+    expect(wrong.status).toBe(400);
+
+    const response = await request(app)
+      .post(`${API}/auth/verify-otp`)
+      .send({ email: 'otpuser@balancebook.app', otp: mail.otp });
+    expect(response.status).toBe(200);
+    expect(response.body.data.user.isEmailVerified).toBe(true);
+    expect(response.body.data.accessToken).toBeTruthy();
+
+    const used = await request(app)
+      .post(`${API}/auth/verify-otp`)
+      .send({ email: 'otpuser@balancebook.app', otp: mail.otp });
+    expect(used.status).toBe(400);
+  });
+});
+
 describeApp('User profile routes', () => {
   it('PATCH /users/me updates the profile and merges notification preferences', async () => {
     const { token } = await register('patchme@balancebook.app');

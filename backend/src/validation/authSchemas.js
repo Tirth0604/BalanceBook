@@ -89,6 +89,13 @@ const resetPassword = z.object({ token, password });
 
 const verifyEmail = z.object({ token });
 
+const verifyOtp = z.object({
+  otp: z.string().trim().length(6, 'OTP must be exactly 6 digits').regex(/^\d{6}$/, 'OTP must be 6 digits'),
+  email,
+});
+
+const resendOtp = z.object({ email });
+
 module.exports = {
   register,
   login,
@@ -96,5 +103,7 @@ module.exports = {
   forgotPassword,
   resetPassword,
   verifyEmail,
+  verifyOtp,
+  resendOtp,
   field: { text, email, password, currency, objectId, token, pageQuery },
 };

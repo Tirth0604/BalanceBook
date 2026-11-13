@@ -13,6 +13,7 @@ const COOKIE_PATH = `${config.API_PREFIX}/auth`;
 const REFRESH_TTL_MS = ttlToMs(config.JWT_REFRESH_TTL);
 const RESET_TOKEN_TTL_MS = 15 * 60 * 1000;
 const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const OTP_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 /**
  * Compared when no user matches the email, so an unknown address costs the same as a wrong
@@ -57,6 +58,13 @@ function hashToken(token) {
 
 function randomToken() {
   return crypto.randomBytes(32).toString('hex');
+}
+
+/** Generate a cryptographically random 6-digit OTP string. */
+function generateOtp() {
+  // Use random bytes to avoid modulo bias; keep only 6 decimal digits.
+  const val = crypto.randomInt(0, 1_000_000);
+  return String(val).padStart(6, '0');
 }
 
 function clientLink(path, token) {
@@ -211,23 +219,34 @@ async function register(payload, { req, res } = {}) {
     preferredCurrency: payload.preferredCurrency,
   });
 
+  // Generate a 6-digit OTP and an email verification token.
+  const otp = generateOtp();
   const verificationToken = randomToken();
+  user.otpHash = hashToken(otp);
+  user.otpExpiresAt = new Date(Date.now() + OTP_TTL_MS);
   user.emailVerificationTokenHash = hashToken(verificationToken);
   user.emailVerificationExpiresAt = new Date(Date.now() + VERIFY_TOKEN_TTL_MS);
   await user.save();
 
   const verifyUrl = clientLink('verify-email', verificationToken);
+  const otpTpl = emailService?.templates ? emailService.templates().otpVerification(otp) : null;
   await deliverMail({
     to: email,
-    subject: 'Confirm your BalanceBook email',
-    text: `Welcome to BalanceBook. Confirm your email: ${verifyUrl}`,
+    subject: otpTpl?.subject || 'Confirm your BalanceBook email',
+    text: otpTpl?.text || `Welcome to BalanceBook!\n\nYour verification code is: ${otp}\n\n(Expires in 10 minutes)\n\nOr verify directly via link: ${verifyUrl}`,
+    html: otpTpl?.html,
     kind: 'verify-email',
     token: verificationToken,
     url: verifyUrl,
+    otp,
   });
 
   const accessToken = await startSession(user, req, res);
-  return { user: toPublicUser(user), accessToken };
+  return {
+    user: toPublicUser(user),
+    accessToken,
+    requiresOtpVerification: !user.isEmailVerified,
+  };
 }
 
 async function login(payload, { req, res } = {}) {
@@ -371,6 +390,79 @@ async function me(userId) {
   return toPublicUser(user);
 }
 
+/**
+ * Verify a 6-digit OTP sent during registration.
+ * On success the user's email is marked verified and the OTP fields are cleared.
+ */
+async function verifyOtp(payload, { req, res } = {}) {
+  const { otp, email } = payload;
+
+  const user = await User.findOne({ email: String(email).toLowerCase().trim() }).select('+otpHash +otpExpiresAt');
+
+  if (!user) throw ApiError.badRequest('Invalid or expired verification code');
+
+  if (!user.otpHash || !user.otpExpiresAt || user.otpExpiresAt.getTime() <= Date.now()) {
+    throw ApiError.badRequest('Verification code has expired. Please request a new one.');
+  }
+
+  if (user.otpHash !== hashToken(String(otp).trim())) {
+    throw ApiError.badRequest('Incorrect verification code. Please try again.');
+  }
+
+  user.isEmailVerified = true;
+  user.otpHash = null;
+  user.otpExpiresAt = null;
+  user.emailVerificationTokenHash = null;
+  user.emailVerificationExpiresAt = null;
+  await user.save();
+
+  const accessToken = await startSession(user, req, res);
+  return { user: toPublicUser(user), accessToken };
+}
+
+/**
+ * Resend a fresh OTP to the user's email.
+ * Refuses if the previous OTP is still fresh (< 60 s old).
+ */
+async function resendOtp(payload) {
+  const email = String(payload.email).toLowerCase().trim();
+  const user = await User.findOne({ email }).select('+otpHash +otpExpiresAt');
+
+  // Don't reveal whether the email exists.
+  if (!user) return { sent: true };
+
+  if (user.isEmailVerified) throw ApiError.badRequest('Email is already verified');
+
+  // Throttle: reject resend if the previous OTP was issued less than 60 seconds ago.
+  const cooldownMs = 60 * 1000;
+  if (user.otpExpiresAt && user.otpExpiresAt.getTime() - OTP_TTL_MS + cooldownMs > Date.now()) {
+    throw ApiError.tooManyRequests('Please wait a moment before requesting another code.');
+  }
+
+  const otp = generateOtp();
+  const verificationToken = randomToken();
+  user.otpHash = hashToken(otp);
+  user.otpExpiresAt = new Date(Date.now() + OTP_TTL_MS);
+  user.emailVerificationTokenHash = hashToken(verificationToken);
+  user.emailVerificationExpiresAt = new Date(Date.now() + VERIFY_TOKEN_TTL_MS);
+  await user.save();
+
+  const verifyUrl = clientLink('verify-email', verificationToken);
+  const otpTpl = emailService?.templates ? emailService.templates().otpVerification(otp) : null;
+  await deliverMail({
+    to: email,
+    subject: otpTpl?.subject || 'Your new BalanceBook verification code',
+    text: otpTpl?.text || `Your new email verification code is: ${otp}\n\nThis code expires in 10 minutes.\n\nOr click: ${verifyUrl}`,
+    html: otpTpl?.html,
+    kind: 'verify-email',
+    token: verificationToken,
+    url: verifyUrl,
+    otp,
+  });
+
+  return { sent: true };
+}
+
 module.exports = {
   register,
   login,
@@ -379,6 +471,8 @@ module.exports = {
   forgotPassword,
   resetPassword,
   verifyEmail,
+  verifyOtp,
+  resendOtp,
   me,
   toPublicUser,
   signAccessToken,

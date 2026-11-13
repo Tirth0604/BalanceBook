@@ -57,6 +57,8 @@ const userSchema = new mongoose.Schema(
     emailVerificationExpiresAt: { type: Date, select: false, default: null },
     passwordResetTokenHash: { type: String, select: false, default: null },
     passwordResetExpiresAt: { type: Date, select: false, default: null },
+    otpHash: { type: String, select: false, default: null },
+    otpExpiresAt: { type: Date, select: false, default: null },
     notificationPreferences: { type: notificationPreferencesSchema, default: () => ({}) },
     status: { type: String, enum: ['active', 'deactivated', 'deleted'], default: 'active' },
     lastLoginAt: { type: Date, default: null },

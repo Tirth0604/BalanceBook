@@ -17,6 +17,8 @@ router.post('/logout', controller.logout);
 router.post('/forgot-password', resetPasswordLimiter, validate({ body: schemas.forgotPassword }), controller.forgotPassword);
 router.post('/reset-password', resetPasswordLimiter, validate({ body: schemas.resetPassword }), controller.resetPassword);
 router.post('/verify-email', validate({ body: schemas.verifyEmail }), controller.verifyEmail);
+router.post('/verify-otp', validate({ body: schemas.verifyOtp }), controller.verifyOtp);
+router.post('/resend-otp', resetPasswordLimiter, validate({ body: schemas.resendOtp }), controller.resendOtp);
 
 router.get('/me', requireAuth, controller.me);
 
