@@ -439,7 +439,7 @@ async function resendOtp(payload) {
   if (user.isEmailVerified) throw ApiError.badRequest('Email is already verified');
 
   // Throttle: reject resend if the previous OTP was issued less than 60 seconds ago.
-  const cooldownMs = 60 * 1000;
+  const cooldownMs = (config.isDevelopment || config.isTest) ? 0 : 60 * 1000;
   if (user.otpExpiresAt && user.otpExpiresAt.getTime() - OTP_TTL_MS + cooldownMs > Date.now()) {
     throw ApiError.tooManyRequests('Please wait a moment before requesting another code.');
   }

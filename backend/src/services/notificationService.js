@@ -7,6 +7,13 @@ const { emitToUser, emitToGroup } = require('../sockets/hub');
 const { parsePagination, buildMeta } = require('../utils/pagination');
 const ApiError = require('../utils/ApiError');
 
+let emailService = null;
+try {
+  emailService = require('./emailService');
+} catch {
+  emailService = null;
+}
+
 /**
  * The only path that creates notifications, so every module (expenses, settlements,
  * budgets, recurring) emits through one place and cannot drift in wording or payloads.
@@ -38,17 +45,39 @@ async function notify({ userIds = [], groupId = null, includeGroupMembers = fals
   if (!recipients.length) return { created: 0, delivered: 0 };
 
   const users = await User.find({ _id: { $in: recipients }, status: 'active' })
-    .select('notificationPreferences name')
+    .select('notificationPreferences name email')
     .session(session ?? null);
 
   const rows = [];
   for (const user of users) {
     const preferences = user.notificationPreferences || {};
     // inApp is the master switch; a type-specific preference can silence a noisy category.
-    if (!preferences.inApp) continue;
     const preferenceKey = PREFERENCE_FOR_TYPE[type];
-    if (preferenceKey && preferences[preferenceKey] === false) continue;
-    rows.push({ userId: user._id, groupId, type, title, body, payload, isRead: false });
+    const categoryEnabled = !preferenceKey || preferences[preferenceKey] !== false;
+
+    if (preferences.inApp && categoryEnabled) {
+      rows.push({ userId: user._id, groupId, type, title, body, payload, isRead: false });
+    }
+
+    // Optional email notifications when enabled in user settings
+    if (preferences.email && categoryEnabled && user.email && emailService && typeof emailService.send === 'function') {
+      emailService
+        .send({
+          to: user.email,
+          subject: `[BalanceBook] ${title}`,
+          text: body || title,
+          html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px; background: #ffffff;">
+              <h2 style="color: #111827; margin: 0 0 12px 0; font-size: 18px; font-weight: 600;">${title}</h2>
+              <p style="color: #4b5563; margin: 0 0 20px 0; font-size: 14px; line-height: 1.5;">${body || title}</p>
+              <p style="color: #9ca3af; font-size: 12px; margin: 0;">You received this email because notification emails are enabled in your BalanceBook settings.</p>
+            </div>
+          `,
+        })
+        .catch((err) => {
+          console.warn(`[notification] email delivery failed for ${user.email}: ${err.message}`);
+        });
+    }
   }
 
   if (!rows.length) return { created: 0, delivered: 0 };

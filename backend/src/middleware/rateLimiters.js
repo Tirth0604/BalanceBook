@@ -24,7 +24,7 @@ function limited(message) {
  * would be exhausted by unrelated tests. Set RATE_LIMIT_TEST=1 to exercise the real limits.
  */
 function skipDuringSuite() {
-  return config.isTest && process.env.RATE_LIMIT_TEST !== '1';
+  return (config.isTest && process.env.RATE_LIMIT_TEST !== '1') || config.isDevelopment;
 }
 
 function emailHint(req) {
