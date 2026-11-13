@@ -33,6 +33,22 @@ try {
   notificationService = null;
 }
 
+let emailService = null;
+try {
+  // eslint-disable-next-line global-require
+  emailService = require('./emailService');
+} catch (error) {
+  emailService = null;
+}
+
+let socketHub = null;
+try {
+  // eslint-disable-next-line global-require
+  socketHub = require('../sockets/hub');
+} catch (error) {
+  socketHub = null;
+}
+
 function sessionOptions(session) {
   return session ? { session } : {};
 }
@@ -186,6 +202,31 @@ async function notifyInvitedUsers(group, invited, actor) {
   }
 }
 
+async function sendInvitationEmails(group, emails, actor) {
+  if (!emailService || typeof emailService.send !== 'function') return;
+  const template = emailService.templates?.().groupInvitation({
+    groupName: group.name,
+    inviterName: actor.name,
+    code: group.invitationCode,
+  });
+  if (!template) return;
+
+  for (const email of emails) {
+    try {
+      await emailService.send({
+        to: email,
+        subject: template.subject,
+        text: template.text,
+        html: template.html,
+      });
+    } catch (error) {
+      if (!config.isProduction) {
+        console.warn(`[groups] email invitation delivery failed for ${email}: ${error.message}`);
+      }
+    }
+  }
+}
+
 /**
  * Adds emails to the member list and mints invitation documents.
  * Buckets: `invited` (a real account was added), `already` (member or open invite exists),
@@ -261,6 +302,10 @@ async function applyInvites({ group, emails, actor, session }) {
   }
 
   await notifyInvitedUsers(group, invited, actor);
+  const newlyInvitedEmails = invited.concat(notFound).map((item) => item.email);
+  if (newlyInvitedEmails.length) {
+    await sendInvitationEmails(group, newlyInvitedEmails, actor);
+  }
   return { invited, already, notFound };
 }
 
@@ -418,6 +463,14 @@ async function acceptInvitation(userId, groupId, inviteId) {
     if (!group.isMember(user._id)) {
       promoteMemberEntry(group, user);
       await group.save(sessionOptions(session));
+      try {
+        if (socketHub && typeof socketHub.emitToGroup === 'function') {
+          socketHub.emitToGroup(group._id, 'group:member_joined', {
+            groupId: String(group._id),
+            user: toUserRef(user),
+          });
+        }
+      } catch {}
     }
 
     if (invitation.status !== 'accepted') {
@@ -474,6 +527,16 @@ async function joinByCode(userId, code) {
   if (!group.isMember(user._id)) {
     promoteMemberEntry(group, user);
     await group.save();
+    try {
+      if (socketHub && typeof socketHub.emitToGroup === 'function') {
+        socketHub.emitToGroup(group._id, 'group:member_joined', {
+          groupId: String(group._id),
+          user: toUserRef(user),
+        });
+      }
+    } catch {
+      // Non-fatal broadcast
+    }
   }
   return { group: await decorate(group, user._id) };
 }
