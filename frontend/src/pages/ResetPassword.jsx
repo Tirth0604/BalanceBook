@@ -13,7 +13,8 @@ export default function ResetPassword() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const token = params.get('token')
+  const rawToken = params.get('token') || ''
+  const token = rawToken.trim()
 
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -37,13 +38,27 @@ export default function ResetPassword() {
     )
   }
 
+  const validate = () => {
+    const next = {}
+    if (password.length < 8) {
+      next.password = 'Use at least 8 characters.'
+    } else if (!/[a-z]/.test(password)) {
+      next.password = 'Include at least one lowercase letter.'
+    } else if (!/[A-Z]/.test(password)) {
+      next.password = 'Include at least one uppercase letter.'
+    } else if (!/\d/.test(password)) {
+      next.password = 'Include at least one number.'
+    }
+    if (confirm !== password) {
+      next.confirm = 'Passwords do not match.'
+    }
+    setErrors(next)
+    return Object.keys(next).length === 0
+  }
+
   const onSubmit = async (e) => {
     e.preventDefault()
-    const next = {}
-    if (password.length < 8) next.password = 'Use at least 8 characters.'
-    if (confirm !== password) next.confirm = 'Passwords do not match.'
-    setErrors(next)
-    if (Object.keys(next).length > 0) return
+    if (!validate()) return
 
     setFormError(null)
     setBusy(true)
@@ -51,7 +66,8 @@ export default function ResetPassword() {
       await dispatch(authApi.endpoints.resetPassword.initiate({ token, password })).unwrap()
       navigate('/login', { replace: true })
     } catch (err) {
-      setFormError(err?.message || 'This reset link has expired. Request a new one.')
+      const msg = err?.data?.message || err?.message || 'This reset link has expired or is invalid. Please request a fresh one.'
+      setFormError(msg)
     } finally {
       setBusy(false)
     }

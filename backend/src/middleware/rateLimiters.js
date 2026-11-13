@@ -60,8 +60,8 @@ const registerLimiter = rateLimit({
 
 const resetPasswordLimiter = rateLimit({
   name: 'password-reset',
-  limit: 5,
-  windowMs: 60 * 60 * 1000,
+  limit: config.isDevelopment ? 100 : 5,
+  windowMs: config.isDevelopment ? 60 * 1000 : 60 * 60 * 1000,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   skip: skipDuringSuite,

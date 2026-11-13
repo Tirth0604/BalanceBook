@@ -16,6 +16,7 @@ function validatePart(schema, value, label) {
       message: issue.message,
       code: issue.code,
     }));
+    console.error('[validation error]', label, details, 'received:', value);
     throw ApiError.unprocessable(details[0]?.message || `Invalid ${label}`, details);
   }
   return result.data;
