@@ -1,7 +1,14 @@
 'use strict';
 
 const mongoose = require('mongoose');
+const dns = require('dns');
 const config = require('./env');
+
+try {
+  if (config.MONGODB_URI && config.MONGODB_URI.startsWith('mongodb+srv://')) {
+    dns.setServers(['8.8.8.8', '1.1.1.1']);
+  }
+} catch (_) {}
 
 mongoose.set('strictQuery', true);
 
