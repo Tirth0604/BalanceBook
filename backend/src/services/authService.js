@@ -131,10 +131,11 @@ function signAccessToken(user) {
 }
 
 function cookieOptions() {
+  const isCrossSite = config.isProduction || Boolean(config.COOKIE_SECURE);
   const options = {
     httpOnly: true,
-    sameSite: 'strict',
-    secure: Boolean(config.COOKIE_SECURE),
+    sameSite: isCrossSite ? 'none' : 'lax',
+    secure: isCrossSite,
     path: COOKIE_PATH,
     maxAge: REFRESH_TTL_MS,
   };

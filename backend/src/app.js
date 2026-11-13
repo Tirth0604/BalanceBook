@@ -26,12 +26,23 @@ app.use(
   }),
 );
 
+function isOriginAllowed(origin) {
+  if (!origin) return true;
+  if (config.CORS_ORIGINS && config.CORS_ORIGINS.includes(origin)) return true;
+  if (config.CLIENT_URL && origin === config.CLIENT_URL) return true;
+  // Automatically allow any Vercel domain (*.vercel.app)
+  if (/^https:\/\/([a-zA-Z0-9-]+\.)*vercel\.app$/.test(origin)) return true;
+  // Automatically allow local network IPs for mobile device testing (e.g. 192.168.x.x, 10.x.x.x, localhost)
+  if (/^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/.test(origin)) return true;
+  return false;
+}
+
 app.use(
   cors({
     origin(origin, callback) {
-      // Same-origin/curl requests have no Origin header.
-      if (!origin || config.CORS_ORIGINS.includes(origin)) return callback(null, true);
-      return callback(new Error(`Origin ${origin} is not allowed by CORS`));
+      if (isOriginAllowed(origin)) return callback(null, true);
+      // Deny without throwing an internal 500 error
+      return callback(null, false);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
