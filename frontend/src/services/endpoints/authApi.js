@@ -11,7 +11,9 @@ export const authApi = createApi({
       query: (body) => ({ url: '/auth/register', method: 'POST', body, isPublicAuthCall: true }),
       onQueryStarted: async (_arg, { dispatch, queryFulfilled }) => {
         const { data } = await queryFulfilled
-        if (data?.accessToken) dispatch(setCredentials({ accessToken: data.accessToken, user: data.user }))
+        if (data?.accessToken && !data?.requiresOtpVerification) {
+          dispatch(setCredentials({ accessToken: data.accessToken, user: data.user }))
+        }
       },
       invalidatesTags: ['User'],
     }),
@@ -68,6 +70,27 @@ export const authApi = createApi({
       }),
       invalidatesTags: ['User'],
     }),
+    verifyOtp: builder.mutation({
+      query: (body) => ({
+        url: '/auth/verify-otp',
+        method: 'POST',
+        body,
+        isPublicAuthCall: true,
+      }),
+      onQueryStarted: async (_arg, { dispatch, queryFulfilled }) => {
+        const { data } = await queryFulfilled
+        if (data?.accessToken) dispatch(setCredentials({ accessToken: data.accessToken, user: data.user }))
+      },
+      invalidatesTags: ['User'],
+    }),
+    resendOtp: builder.mutation({
+      query: (body) => ({
+        url: '/auth/resend-otp',
+        method: 'POST',
+        body,
+        isPublicAuthCall: true,
+      }),
+    }),
     getMe: builder.query({
       query: () => '/auth/me',
       providesTags: [{ type: 'User', id: 'ME' }],
@@ -83,6 +106,8 @@ export const {
   useForgotPasswordMutation,
   useResetPasswordMutation,
   useVerifyEmailMutation,
+  useVerifyOtpMutation,
+  useResendOtpMutation,
   useGetMeQuery,
 } = authApi
 

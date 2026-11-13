@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
 import AuthLayout from '@/components/layout/AuthLayout'
 import Button from '@/components/ui/button'
@@ -17,7 +17,17 @@ export default function Login() {
   const { login, isAuthenticated, status } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const from = location.state?.from || '/dashboard'
+  const [searchParams] = useSearchParams()
+  const redirectParam = searchParams.get('redirect')
+  const pendingCode = (() => {
+    try {
+      return sessionStorage.getItem('pendingJoinCode')
+    } catch {
+      return null
+    }
+  })()
+  const defaultDestination = pendingCode ? `/join?code=${encodeURIComponent(pendingCode)}` : '/dashboard'
+  const from = redirectParam || location.state?.from || defaultDestination
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

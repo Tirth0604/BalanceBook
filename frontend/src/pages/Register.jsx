@@ -43,13 +43,18 @@ export default function Register() {
     setFormError(null)
     setBusy(true)
     try {
-      await register({
+      const result = await register({
         name: form.name.trim(),
         email: form.email.trim().toLowerCase(),
         password: form.password,
         preferredCurrency: form.preferredCurrency,
       })
-      navigate('/dashboard', { replace: true })
+      // If the backend requires OTP verification, redirect to the OTP page.
+      if (result?.requiresOtpVerification) {
+        navigate(`/verify-otp?email=${encodeURIComponent(form.email.trim().toLowerCase())}`, { replace: true })
+      } else {
+        navigate('/dashboard', { replace: true })
+      }
     } catch (err) {
       const fields = fieldErrorsFrom(err)
       if (Object.keys(fields).length) setErrors((prev) => ({ ...prev, ...fields }))
