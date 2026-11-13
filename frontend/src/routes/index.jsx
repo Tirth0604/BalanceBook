@@ -50,8 +50,10 @@ function page(loader) {
 const Landing = page(() => import('@/pages/Landing'))
 const Login = page(() => import('@/pages/Login'))
 const Register = page(() => import('@/pages/Register'))
+const VerifyOtp = page(() => import('@/pages/VerifyOtp'))
 const ForgotPassword = page(() => import('@/pages/ForgotPassword'))
 const ResetPassword = page(() => import('@/pages/ResetPassword'))
+const JoinGroup = page(() => import('@/pages/JoinGroup'))
 
 const shellChildren = appRoutes.map(({ path, page: candidates, label }) => {
   const loader = resolvePage(candidates)
@@ -72,12 +74,15 @@ export const router = createBrowserRouter([
   {
     element: <RootLayout />,
     children: [
+      { path: 'join', Component: JoinGroup },
+      { path: 'groups/join', Component: JoinGroup },
       {
         element: <RedirectIfAuthed />,
         children: [
           { index: true, Component: Landing },
           { path: 'login', Component: Login },
           { path: 'register', Component: Register },
+          { path: 'verify-otp', Component: VerifyOtp },
           { path: 'forgot-password', Component: ForgotPassword },
           { path: 'reset-password', Component: ResetPassword },
         ],

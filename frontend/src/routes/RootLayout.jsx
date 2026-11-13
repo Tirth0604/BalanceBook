@@ -8,6 +8,7 @@ import { balancesApi } from '@/services/endpoints/balancesApi'
 import { analyticsApi } from '@/services/endpoints/analyticsApi'
 import { expensesApi } from '@/services/endpoints/expensesApi'
 import { settlementsApi } from '@/services/endpoints/settlementsApi'
+import { groupsApi } from '@/services/endpoints/groupsApi'
 import { connect, disconnect, on } from '@/lib/io'
 import { useToast } from '@/components/ui/toast'
 
@@ -86,6 +87,13 @@ function SocketBridge() {
       on('expense:deleted', () => dispatch(expensesApi.util.invalidateTags([{ type: 'Expense', id: 'LIST' }]))),
       on('settlement:updated', () => dispatch(settlementsApi.util.invalidateTags([{ type: 'Settlement', id: 'LIST' }]))),
       on('invitation:new', () => dispatch(notificationsApi.util.invalidateTags(['Notification']))),
+      on('group:member_joined', ({ groupId, user } = {}) => {
+        dispatch(groupsApi.util.invalidateTags(['Group']))
+        if (groupId) {
+          dispatch(groupsApi.util.invalidateTags([{ type: 'Group', id: String(groupId) }]))
+        }
+        toast.info('New member joined!', `${user?.name || 'A new member'} joined the group.`)
+      }),
     ]
     return () => {
       offs.forEach((off) => off?.())
