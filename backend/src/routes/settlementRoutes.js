@@ -10,6 +10,8 @@ const {
   emptyBody,
   listMySettlementsQuery,
   historyQuery,
+  createRazorpayOrder,
+  verifyRazorpayPayment,
 } = require('../validation/settlementSchemas');
 const validate = require('../middleware/validationMiddleware').validate;
 const settlementController = require('../controllers/settlementController');
@@ -17,6 +19,22 @@ const settlementController = require('../controllers/settlementController');
 const router = express.Router();
 
 router.post('/', requireAuth, validate({ body: recordSettlement }), settlementController.record);
+
+router.post(
+  '/razorpay/create-order',
+  requireAuth,
+  validate({ body: createRazorpayOrder }),
+  settlementController.createRazorpayOrder,
+);
+
+router.post(
+  '/razorpay/verify',
+  requireAuth,
+  validate({ body: verifyRazorpayPayment }),
+  settlementController.verifyRazorpayPayment,
+);
+
+router.post('/razorpay/webhook', settlementController.razorpayWebhook);
 
 router.get('/', requireAuth, validate({ query: listMySettlementsQuery }), settlementController.listForMe);
 // Static `/history` must precede any `/:id` style match to avoid being captured by it.

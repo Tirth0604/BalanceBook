@@ -94,7 +94,11 @@ async function notify({ userIds = [], groupId = null, includeGroupMembers = fals
 
 /** Real-time-only broadcast (balance changed, expense added) with no persisted row. */
 function broadcastGroup(groupId, event, payload) {
-  return emitToGroup(groupId, event, payload);
+  const result = emitToGroup(groupId, event, payload);
+  if (['expense:created', 'expense:updated', 'expense:deleted'].includes(event)) {
+    emitToGroup(groupId, 'balance:changed', { groupId: String(groupId) });
+  }
+  return result;
 }
 
 async function listForUser(userId, query = {}) {

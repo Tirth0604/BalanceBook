@@ -1,4 +1,4 @@
-import { ArrowRight, GitCompareArrows, HandCoins, Sparkles } from 'lucide-react'
+import { ArrowRight, GitCompareArrows, HandCoins, Sparkles, Zap } from 'lucide-react'
 import Avatar from '@/components/ui/avatar'
 import Badge from '@/components/ui/badge'
 import Button from '@/components/ui/button'
@@ -112,19 +112,37 @@ export function SuggestedPlan({ group, algorithm = 'minimum', onAlgorithmChange,
               <span className="text-sm font-medium">{transaction.to?.name ?? 'Creditor'}</span>
             </span>
             <Money minor={transaction.amountMinor} currency={currency} className="ml-auto text-sm font-semibold" />
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                onRecord?.({
-                  payerId: transaction.from?.id,
-                  receiverId: transaction.to?.id,
-                  amount: transaction.amount ?? (transaction.amountMinor / 100).toFixed(2),
-                })
-              }
-            >
-              <HandCoins className="size-4" aria-hidden /> Record
-            </Button>
+            <div className="flex items-center gap-1.5">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  onRecord?.({
+                    payerId: transaction.from?.id,
+                    receiverId: transaction.to?.id,
+                    amount: transaction.amount ?? (transaction.amountMinor / 100).toFixed(2),
+                    paymentMethod: 'cash',
+                  })
+                }
+              >
+                <HandCoins className="size-4" aria-hidden /> Record
+              </Button>
+              <Button
+                size="sm"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                onClick={() =>
+                  onRecord?.({
+                    payerId: transaction.from?.id,
+                    receiverId: transaction.to?.id,
+                    amount: transaction.amount ?? (transaction.amountMinor / 100).toFixed(2),
+                    paymentMethod: 'razorpay',
+                  })
+                }
+                title="Pay with Razorpay ⚡"
+              >
+                <Zap className="size-3.5 fill-current" aria-hidden /> Pay ⚡
+              </Button>
+            </div>
           </li>
         ))}
       </ul>

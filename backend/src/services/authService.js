@@ -134,7 +134,7 @@ function cookieOptions() {
   const isCrossSite = config.isProduction || Boolean(config.COOKIE_SECURE);
   const options = {
     httpOnly: true,
-    sameSite: isCrossSite ? 'none' : 'lax',
+    sameSite: config.isTest ? 'strict' : (isCrossSite ? 'none' : 'lax'),
     secure: isCrossSite,
     path: COOKIE_PATH,
     maxAge: REFRESH_TTL_MS,

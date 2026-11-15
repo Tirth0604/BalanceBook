@@ -21,7 +21,7 @@ export function useGroupAccess(group) {
   return {
     myId,
     isMe: (userId) => userId === myId,
-    isMember: Boolean(group) ? isAdmin || isMember() : false,
+    isMember: group ? isAdmin || isMember() : false,
     isAdmin: Boolean(isAdmin),
     canManage: Boolean(isAdmin), // admin-only surfaces: invites, members, budgets edit
     canSpend: Boolean(group) && !group.isArchived && (isAdmin || isMember()),

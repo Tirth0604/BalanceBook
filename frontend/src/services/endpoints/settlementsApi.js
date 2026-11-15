@@ -34,7 +34,7 @@ export const settlementsApi = createApi({
       ],
     }),
     confirmSettlement: builder.mutation({
-      query: ({ settlementId, groupId }) => ({
+      query: ({ settlementId }) => ({
         url: `/settlements/${settlementId}/confirm`,
         method: 'POST',
       }),
@@ -46,7 +46,7 @@ export const settlementsApi = createApi({
       ],
     }),
     rejectSettlement: builder.mutation({
-      query: ({ settlementId, groupId, reason }) => ({
+      query: ({ settlementId, reason }) => ({
         url: `/settlements/${settlementId}/reject`,
         method: 'POST',
         body: { reason },
@@ -59,7 +59,7 @@ export const settlementsApi = createApi({
       ],
     }),
     disputeSettlement: builder.mutation({
-      query: ({ settlementId, groupId }) => ({
+      query: ({ settlementId }) => ({
         url: `/settlements/${settlementId}/dispute`,
         method: 'POST',
       }),
@@ -71,7 +71,7 @@ export const settlementsApi = createApi({
       ],
     }),
     cancelSettlement: builder.mutation({
-      query: ({ settlementId, groupId }) => ({
+      query: ({ settlementId }) => ({
         url: `/settlements/${settlementId}/cancel`,
         method: 'POST',
       }),
@@ -96,6 +96,19 @@ export const settlementsApi = createApi({
       query: () => '/settlements/history',
       providesTags: [{ type: 'Settlement', id: 'HISTORY' }],
     }),
+    createRazorpayOrder: builder.mutation({
+      query: (body) => ({ url: '/settlements/razorpay/create-order', method: 'POST', body }),
+    }),
+    verifyRazorpayPayment: builder.mutation({
+      query: (body) => ({ url: '/settlements/razorpay/verify', method: 'POST', body }),
+      invalidatesTags: (_r, _e, body) => [
+        ...moneyTags(body?.groupId),
+        { type: 'Settlement', id: 'LIST' },
+        { type: 'Settlement', id: `GROUP:${body?.groupId}` },
+        { type: 'SettlementDetail', id: String(body?.settlementId) },
+        'Notification',
+      ],
+    }),
   }),
 })
 
@@ -109,6 +122,8 @@ export const {
   useCancelSettlementMutation,
   useListMySettlementsQuery,
   useSettlementHistoryQuery,
+  useCreateRazorpayOrderMutation,
+  useVerifyRazorpayPaymentMutation,
 } = settlementsApi
 
 export default settlementsApi

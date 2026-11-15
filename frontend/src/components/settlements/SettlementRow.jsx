@@ -109,6 +109,16 @@ export function SettlementRow({ settlement, myId, onMutated }) {
 
       <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-caption">
         <span>{settlement.paymentMethod?.replace('_', ' ') ?? 'payment'}</span>
+        {settlement.paymentMethod === 'razorpay' ? (
+          <Badge tone="outline" className="border-blue-500/30 text-blue-500 py-0 text-[10px]">
+            Razorpay ⚡
+          </Badge>
+        ) : null}
+        {settlement.razorpayPaymentId ? (
+          <span className="font-mono text-[11px] text-primary" title={`Razorpay Payment ID: ${settlement.razorpayPaymentId}`}>
+            rzp: {settlement.razorpayPaymentId}
+          </span>
+        ) : null}
         {settlement.group?.name ? (
           <Link to={`/groups/${settlement.group.id}`} className="underline-offset-2 hover:text-primary hover:underline">
             {settlement.group.name}

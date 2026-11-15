@@ -16,7 +16,7 @@ export const budgetsApi = createApi({
       providesTags: (_r, _e, groupId) => [{ type: 'Budget', id: String(groupId) }],
     }),
     deleteBudget: builder.mutation({
-      query: ({ budgetId, groupId }) => ({ url: `/budgets/${budgetId}`, method: 'DELETE' }),
+      query: ({ budgetId }) => ({ url: `/budgets/${budgetId}`, method: 'DELETE' }),
       invalidatesTags: (_r, _e, { groupId }) => [
         { type: 'Budget', id: String(groupId) },
       ],

@@ -71,6 +71,37 @@ const historyQuery = pageQuery.extend({
   groupId: objectId('group id').optional(),
 });
 
+const createRazorpayOrder = z.object({
+  groupId: objectId('group id'),
+  receiverId: objectId('receiver id'),
+  amount: decimalAmount,
+  currency: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{3}$/, 'Currency must be a 3-letter ISO code')
+    .optional(),
+  note: z.string().trim().max(300).optional(),
+  settlementId: objectId('settlement id').optional(),
+});
+
+const verifyRazorpayPayment = z.object({
+  groupId: objectId('group id'),
+  receiverId: objectId('receiver id'),
+  amount: decimalAmount,
+  currency: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{3}$/, 'Currency must be a 3-letter ISO code')
+    .optional(),
+  note: z.string().trim().max(300).optional(),
+  settlementId: objectId('settlement id').optional(),
+  razorpayOrderId: z.string().trim().min(1, 'razorpayOrderId is required'),
+  razorpayPaymentId: z.string().trim().min(1, 'razorpayPaymentId is required'),
+  razorpaySignature: z.string().trim().min(1, 'razorpaySignature is required'),
+});
+
 module.exports = {
   recordSettlement,
   settlementParams,
@@ -81,4 +112,6 @@ module.exports = {
   listGroupSettlementsQuery,
   listMySettlementsQuery,
   historyQuery,
+  createRazorpayOrder,
+  verifyRazorpayPayment,
 };

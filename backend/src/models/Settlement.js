@@ -51,6 +51,11 @@ const settlementSchema = new mongoose.Schema(
     cancelledAt: { type: Date, default: null },
     // Replayed requests must reuse the original settlement instead of creating a second one.
     idempotencyKey: { type: String, trim: true, maxlength: 128, default: null },
+    // Razorpay payment integration details
+    razorpayOrderId: { type: String, trim: true, default: null },
+    razorpayPaymentId: { type: String, trim: true, default: null },
+    razorpaySignature: { type: String, trim: true, default: null },
+    razorpayStatus: { type: String, trim: true, default: null },
     auditTrail: {
       type: [
         {

@@ -139,10 +139,8 @@ export function reconcileSplit({
 
   /* -------------------------------------------------- exact: Σ share must equal total */
   if (splitType === SPLIT_EXACT) {
-    let pending = 0
     const rows = ids.map((userId) => {
       const { minor, error } = shareToMinor(shares[userId])
-      if (error) pending += 1
       return {
         userId,
         name: nameOf.get(userId) ?? '',
@@ -193,7 +191,7 @@ export function reconcileSplit({
   }
 
   if (!missing && bpsSum === 10000) {
-    let allocated = []
+    let allocated
     try {
       allocated = previewPercentageSplit(
         totalMinor,
@@ -268,7 +266,7 @@ function totalToMinorFromMinor(totalMinor) {
  * Wire payload for POST/PATCH (docs/03 create body): shares travel as decimal
  * strings; `equal` sends no shares because the server derives them.
  */
-export function buildSplitPayload({ splitType, totalMinor, participants, shares, percentages, currency }) {
+export function buildSplitPayload({ splitType, totalMinor: _totalMinor, participants, shares, percentages, currency: _currency }) {
   if (splitType === SPLIT_EQUAL) return { splitType, participants: participants.map((p) => ({ userId: p.userId })) }
   if (splitType === SPLIT_EXACT) {
     return {

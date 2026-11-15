@@ -17,6 +17,7 @@ const Group = require('../models/Group');
 const Settlement = require('../models/Settlement');
 const { buildBalances, assertGroupInvariant, pairwiseOwedTo, withSession, toId } = require('./balanceService');
 const { notify, broadcastGroup } = require('./notificationService');
+const razorpayService = require('./razorpayService');
 
 const UNCONFIRMED_STATUSES = new Set([SETTLEMENT_STATUS.PENDING, SETTLEMENT_STATUS.AWAITING_CONFIRMATION]);
 
@@ -72,6 +73,9 @@ function toSettlementDto(settlement, viewerId) {
     paymentMethod: settlement.paymentMethod,
     note: settlement.note ?? '',
     proofUrl: settlement.proofUrl ?? null,
+    razorpayOrderId: settlement.razorpayOrderId ?? null,
+    razorpayPaymentId: settlement.razorpayPaymentId ?? null,
+    razorpayStatus: settlement.razorpayStatus ?? null,
     initiatedBy: userRef(settlement.initiatedBy),
     initiatedAt: settlement.initiatedAt ?? null,
     confirmedAt: settlement.confirmedAt ?? null,
@@ -417,6 +421,209 @@ async function mySummary(viewerId, { currency } = {}) {
   };
 }
 
+/**
+ * Creates a Razorpay Order for online payment settling.
+ */
+async function createRazorpayOrder(payload, { viewerId }) {
+  const group = await Group.findById(payload.groupId);
+  if (!group) throw ApiError.notFound('Group not found');
+
+  const payerId = toId(viewerId);
+  const receiverId = toId(payload.receiverId);
+
+  if (!group.isMember(payerId) || !group.isMember(receiverId)) {
+    throw ApiError.forbidden('Payer and receiver must both be active members of this group');
+  }
+  if (payerId === receiverId) {
+    throw new ApiError(422, 'VALIDATION_ERROR', 'A settlement cannot pay itself');
+  }
+
+  const currency = (payload.currency || group.baseCurrency || 'INR').toUpperCase();
+  const amountMinor = money.toMinor(payload.amount, currency);
+  if (amountMinor <= 0) {
+    throw new ApiError(422, 'VALIDATION_ERROR', 'Settlement amount must be greater than zero');
+  }
+
+  let existingSettlement = null;
+  if (payload.settlementId) {
+    existingSettlement = await Settlement.findById(payload.settlementId);
+    if (!existingSettlement) throw ApiError.notFound('Settlement not found');
+    if (
+      existingSettlement.status !== SETTLEMENT_STATUS.AWAITING_CONFIRMATION &&
+      existingSettlement.status !== SETTLEMENT_STATUS.PENDING
+    ) {
+      throw ApiError.conflict('This settlement is already processed');
+    }
+    if (toId(existingSettlement.payerId) !== payerId) {
+      throw ApiError.forbidden('Only the payer can pay this settlement');
+    }
+  } else {
+    const snapshot = await buildBalances(payload.groupId);
+    assertGroupInvariant(snapshot.group._id, snapshot.balances);
+    const debts = pairwiseOwedTo({
+      balances: snapshot.balances,
+      memberIds: snapshot.memberIds,
+      debts: computePairwiseDebts({
+        memberIds: snapshot.memberIds,
+        expenses: snapshot.expenses,
+        settlements: snapshot.settlements,
+      }),
+    });
+    const outstanding = debts.debtBetween(payerId, receiverId);
+    if (amountMinor > outstanding) {
+      throw new ApiError(
+        422,
+        'VALIDATION_ERROR',
+        `Amount exceeds what the payer owes this receiver (max ${money.format(outstanding, currency)})`,
+        { allowedMaxMinor: outstanding, path: 'amount' },
+      );
+    }
+  }
+
+  const receipt = `rcpt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+  const order = await razorpayService.createOrder({
+    amountMinor,
+    currency,
+    receipt,
+    notes: {
+      groupId: String(group._id),
+      payerId: String(payerId),
+      receiverId: String(receiverId),
+      settlementId: payload.settlementId ? String(payload.settlementId) : '',
+      note: payload.note || '',
+    },
+  });
+
+  if (existingSettlement) {
+    existingSettlement.razorpayOrderId = order.orderId;
+    await existingSettlement.save();
+  }
+
+  return {
+    orderId: order.orderId,
+    amountMinor: order.amount,
+    amount: money.fromMinor(order.amount, currency),
+    currency: order.currency,
+    keyId: order.keyId,
+    groupId: toId(group._id),
+    receiverId,
+    payerId,
+    settlementId: payload.settlementId ? toId(payload.settlementId) : null,
+  };
+}
+
+/**
+ * Verifies Razorpay payment signature and marks/creates the settlement as completed.
+ */
+async function verifyAndCompleteRazorpaySettlement(payload, { viewerId }) {
+  const {
+    groupId,
+    receiverId,
+    amount,
+    currency: reqCurrency,
+    note,
+    settlementId,
+    razorpayOrderId,
+    razorpayPaymentId,
+    razorpaySignature,
+  } = payload;
+
+  const isValid = razorpayService.verifyPaymentSignature({
+    razorpayOrderId,
+    razorpayPaymentId,
+    razorpaySignature,
+  });
+
+  if (!isValid) {
+    throw ApiError.badRequest('Invalid Razorpay payment signature');
+  }
+
+  const payerId = toId(viewerId);
+  const targetReceiverId = toId(receiverId);
+
+  const settlement = await withTransaction(async ({ session }) => {
+    const group = await withSession(Group.findById(groupId), session);
+    if (!group) throw ApiError.notFound('Group not found');
+    const currency = (reqCurrency || group.baseCurrency || 'INR').toUpperCase();
+    const amountMinor = money.toMinor(amount, currency);
+
+    let doc;
+    if (settlementId) {
+      doc = await withSession(Settlement.findById(settlementId).populate(POPULATE), session);
+      if (!doc) throw ApiError.notFound('Settlement not found');
+      if (doc.status === SETTLEMENT_STATUS.COMPLETED) {
+        return doc;
+      }
+      doc.status = SETTLEMENT_STATUS.COMPLETED;
+      doc.paymentMethod = 'razorpay';
+      doc.razorpayOrderId = razorpayOrderId;
+      doc.razorpayPaymentId = razorpayPaymentId;
+      doc.razorpaySignature = razorpaySignature;
+      doc.razorpayStatus = 'captured';
+      doc.confirmedAt = new Date();
+      doc.confirmedBy = payerId;
+      doc.auditTrail.push({
+        action: 'paid_via_razorpay',
+        by: payerId,
+        at: new Date(),
+        note: `Verified Razorpay payment ${razorpayPaymentId}`,
+      });
+      await doc.save(saveOptions(session));
+    } else {
+      const [created] = await Settlement.create(
+        [
+          {
+            groupId: group._id,
+            payerId,
+            receiverId: targetReceiverId,
+            amountMinor,
+            currency,
+            status: SETTLEMENT_STATUS.COMPLETED,
+            paymentMethod: 'razorpay',
+            note: note || 'Settled via Razorpay',
+            initiatedBy: payerId,
+            confirmedAt: new Date(),
+            confirmedBy: payerId,
+            razorpayOrderId,
+            razorpayPaymentId,
+            razorpaySignature,
+            razorpayStatus: 'captured',
+            auditTrail: [
+              {
+                action: 'created_and_completed_via_razorpay',
+                by: payerId,
+                at: new Date(),
+                note: `Verified Razorpay payment ${razorpayPaymentId}`,
+              },
+            ],
+          },
+        ],
+        saveOptions(session),
+      );
+      doc = await findPopulated(created._id, session);
+    }
+
+    const snapshot = await buildBalances(group._id, { session });
+    assertGroupInvariant(snapshot.group._id, snapshot.balances);
+
+    await notify({
+      userIds: [targetReceiverId],
+      groupId: toId(group._id),
+      type: 'settlement_confirmed',
+      title: 'Payment received via Razorpay',
+      body: `${money.format(amountMinor, currency)} was paid to you online via Razorpay.`,
+      payload: { settlementId: toId(doc._id), groupId: toId(group._id) },
+      session,
+    });
+
+    return doc;
+  });
+
+  broadcastGroup(toId(groupId), 'balance:changed', { groupId: toId(groupId) });
+
+  return toSettlementDto(settlement, viewerId);
+}
+
 module.exports = {
   recordSettlement,
   confirmSettlement,
@@ -428,4 +635,6 @@ module.exports = {
   history,
   mySummary,
   toSettlementDto,
+  createRazorpayOrder,
+  verifyAndCompleteRazorpaySettlement,
 };

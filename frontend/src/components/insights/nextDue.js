@@ -46,7 +46,6 @@ export function upcomingDates({ frequency, interval = 1, startDate, endDate = nu
 /** "Every 2 weeks, next on 14 Nov 2026" — plain words for the rule preview. */
 export function describeCadence({ frequency, interval = 1, startDate, endDate, maxOccurrences }) {
   const step = Math.max(1, Math.trunc(Number(interval) || 1))
-  const unit = step > 1 ? `${frequency}s` : frequency.replace('ly', '')
   const per =
     frequency === 'daily' ? `day${step > 1 ? 's' : ''}` : frequency === 'weekly' ? `week${step > 1 ? 's' : ''}` : `month${step > 1 ? 's' : ''}`
   const parts = [`every ${step} ${per}`]

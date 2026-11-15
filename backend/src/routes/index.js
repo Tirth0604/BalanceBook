@@ -30,6 +30,7 @@ const MOUNTS = [
   ['/recurring', './recurringRoutes', false],
   ['/budgets', './budgetRoutes', false],
   ['/meta', './metaRoutes', false],
+  ['/razorpay', './razorpayRoutes', false],
 ];
 
 const loaded = [];

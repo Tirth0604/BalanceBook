@@ -12,7 +12,7 @@ import NotFound from '@/pages/NotFound'
  * pages/Expenses.jsx exists and falls back to the honest NotFound state
  * ("still being built") until then.
  */
-const pageModules = import.meta.glob('../pages/*.jsx')
+const pageModules = import.meta.glob(['../pages/*.jsx', '!../pages/NotFound.jsx'])
 
 function resolvePage(candidates) {
   for (const name of candidates) {

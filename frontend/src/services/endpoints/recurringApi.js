@@ -15,7 +15,7 @@ export const recurringApi = createApi({
       providesTags: (_r, _e, groupId) => [{ type: 'Recurring', id: String(groupId) }],
     }),
     updateRecurring: builder.mutation({
-      query: ({ recurringId, groupId, body }) => ({
+      query: ({ recurringId, body }) => ({
         url: `/recurring/${recurringId}`,
         method: 'PATCH',
         body,
@@ -25,19 +25,19 @@ export const recurringApi = createApi({
       ],
     }),
     deleteRecurring: builder.mutation({
-      query: ({ recurringId, groupId }) => ({ url: `/recurring/${recurringId}`, method: 'DELETE' }),
+      query: ({ recurringId }) => ({ url: `/recurring/${recurringId}`, method: 'DELETE' }),
       invalidatesTags: (_r, _e, { groupId }) => [
         { type: 'Recurring', id: String(groupId) },
       ],
     }),
     pauseRecurring: builder.mutation({
-      query: ({ recurringId, groupId }) => ({ url: `/recurring/${recurringId}/pause`, method: 'POST' }),
+      query: ({ recurringId }) => ({ url: `/recurring/${recurringId}/pause`, method: 'POST' }),
       invalidatesTags: (_r, _e, { groupId }) => [
         { type: 'Recurring', id: String(groupId) },
       ],
     }),
     resumeRecurring: builder.mutation({
-      query: ({ recurringId, groupId }) => ({ url: `/recurring/${recurringId}/resume`, method: 'POST' }),
+      query: ({ recurringId }) => ({ url: `/recurring/${recurringId}/resume`, method: 'POST' }),
       invalidatesTags: (_r, _e, { groupId }) => [
         { type: 'Recurring', id: String(groupId) },
       ],

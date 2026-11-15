@@ -70,7 +70,12 @@ async function main() {
     console.log(`Starting API on :${PORT}…`);
     server = spawn(process.execPath, ['src/server.js'], { cwd: process.cwd(), env, stdio: 'ignore' });
   } else {
-    console.log(`Using MONGODB_URI already exported; expecting the API on :${PORT}…`);
+    console.log(`Using MONGODB_URI already exported; checking API on :${PORT}…`);
+    const alreadyUp = await waitForServer(2);
+    if (!alreadyUp) {
+      console.log(`Starting API on :${PORT}…`);
+      server = spawn(process.execPath, ['src/server.js'], { cwd: process.cwd(), env, stdio: 'ignore' });
+    }
   }
 
   if (!(await waitForServer())) throw new Error('API did not become healthy in time');
@@ -116,6 +121,9 @@ async function main() {
     const res = await call('GET', path, { token });
     record(`GET ${path}`, res.status === 200, `status ${res.status}`);
   }
+
+  const razorpayKey = await call('GET', '/razorpay/key', { token });
+  record('GET /razorpay/key', razorpayKey.status === 200 && Boolean(razorpayKey.json?.data?.keyId), `keyId present`);
 
   const forbidden = await call('GET', '/groups', { token: 'not.a.real.token' });
   record('rejected invalid token', forbidden.status === 401, `status ${forbidden.status}`);

@@ -74,6 +74,10 @@ const schema = z.object({
   SEED_PASSWORD: z.string().default('Balance@123'),
   SETTLEMENT_EXACT_MAX_SIZE: z.coerce.number().int().min(2).max(20).default(12),
   LOG_LEVEL: z.enum(['silent', 'error', 'warn', 'info', 'http', 'debug']).default('info'),
+
+  RAZORPAY_KEY_ID: z.string().default('rzp_test_U0MCZXxrqSTQGl'),
+  RAZORPAY_KEY_SECRET: z.string().default('3DRYFqDkaGxYk60PNlLnZ70T'),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);

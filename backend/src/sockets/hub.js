@@ -50,9 +50,11 @@ function attachSocket(server) {
     } catch {
       // A failed room sync must not drop the connection; the client re-subscribes explicitly.
     }
+    socket.emit('session:ready', { userId });
 
-    socket.on('group:subscribe', async (groupId, ack) => {
+    socket.on('group:subscribe', async (input, ack) => {
       try {
+        const groupId = typeof input === 'object' && input !== null ? input.groupId : input;
         const group = await Group.findById(groupId).select('members');
         if (!group || !group.isMember(userId)) throw new Error('Not a member');
         socket.join(groupRoom(groupId));

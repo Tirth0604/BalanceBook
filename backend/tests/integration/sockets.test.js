@@ -45,7 +45,7 @@ function once(socket, event) {
 
 async function connected(token) {
   const socket = connectClient(token);
-  await once(socket, 'connect');
+  await once(socket, 'session:ready');
   return socket;
 }
 
@@ -75,7 +75,14 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await new Promise((resolve) => server.close(resolve));
+  const io = getIO();
+  if (io) {
+    io.disconnectSockets(true);
+    await new Promise((resolve) => io.close(resolve));
+  }
+  if (server && server.listening) {
+    await new Promise((resolve) => server.close(resolve));
+  }
   await disconnectDatabase();
   if (mongoServer) await mongoServer.stop();
 });

@@ -1,9 +1,9 @@
 'use strict';
 
 process.env.MONGODB_URI = 'mongodb://127.0.0.1:27017/settlementtest';
-process.env.USE_TRANSACTIONS = 'true';
+process.env.USE_TRANSACTIONS = 'false';
 
-const { MongoMemoryReplSet } = require('mongodb-memory-server');
+const { MongoMemoryServer } = require('mongodb-memory-server');
 const request = require('supertest');
 
 const app = require('../../src/app');
@@ -53,7 +53,7 @@ async function makeExpense(group, { paidBy, shares, totalMinor, splitType = 'exa
 const bearer = (user) => ({ Authorization: `Bearer ${signAccessToken(user)}` });
 
 beforeAll(async () => {
-  mongod = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: 'wiredTiger' } });
+  mongod = await MongoMemoryServer.create();
   await connectDatabase(mongod.getUri());
 });
 

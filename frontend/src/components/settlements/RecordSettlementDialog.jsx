@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowRight, HandCoins, Info } from 'lucide-react'
+import { ArrowRight, HandCoins, Info, Zap } from 'lucide-react'
 import Button from '@/components/ui/button'
 import Avatar from '@/components/ui/avatar'
 import { Field, Textarea } from '@/components/ui/input'
@@ -21,10 +21,16 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/components/ui/toast'
-import { useCreateSettlementMutation } from '@/services/endpoints/settlementsApi'
+import {
+  useCreateSettlementMutation,
+  useCreateRazorpayOrderMutation,
+  useVerifyRazorpayPaymentMutation,
+} from '@/services/endpoints/settlementsApi'
+import { openRazorpayCheckout } from '@/lib/razorpay'
 import { buildSettlementBody, makeIdempotencyKey } from './settlementActions'
 
 const METHODS = [
+  { value: 'razorpay', label: 'Razorpay (Instant Online Pay ⚡)' },
   { value: 'cash', label: 'Cash' },
   { value: 'upi', label: 'UPI' },
   { value: 'bank_transfer', label: 'Bank transfer' },
@@ -40,13 +46,16 @@ const METHODS = [
 export function RecordSettlementDialog({ group, open, onOpenChange, initial = {}, onRecorded, members = [] }) {
   const toast = useToast()
   const [createSettlement, createState] = useCreateSettlementMutation()
+  const [createRazorpayOrder, razorpayOrderState] = useCreateRazorpayOrderMutation()
+  const [verifyRazorpayPayment] = useVerifyRazorpayPaymentMutation()
+  const [isRazorpayPaying, setIsRazorpayPaying] = useState(false)
   const currency = group?.baseCurrency || 'INR'
 
   const activeMembers = useMemo(
     () => members.filter((m) => (m.status ?? 'active') === 'active'),
     [members],
   )
-  const [form, setForm] = useState({ payerId: '', receiverId: '', amount: '', paymentMethod: 'cash', note: '' })
+  const [form, setForm] = useState({ payerId: '', receiverId: '', amount: '', paymentMethod: 'razorpay', note: '' })
   const [key, setKey] = useState(() => makeIdempotencyKey(group?.id ?? 'settlement'))
   const [fieldErrors, setFieldErrors] = useState({})
 
@@ -56,13 +65,13 @@ export function RecordSettlementDialog({ group, open, onOpenChange, initial = {}
       payerId: initial.payerId ?? '',
       receiverId: initial.receiverId ?? '',
       amount: initial.amount ? String(initial.amount) : '',
-      paymentMethod: 'cash',
+      paymentMethod: initial.paymentMethod ?? 'razorpay',
       note: '',
     })
     setFieldErrors({})
     setKey(makeIdempotencyKey(group?.id ?? 'settlement'))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, initial.payerId, initial.receiverId, initial.amount])
+  }, [open, initial.payerId, initial.receiverId, initial.amount, initial.paymentMethod])
 
   const payer = activeMembers.find((m) => m.user?.id === form.payerId)
   const receiver = activeMembers.find((m) => m.user?.id === form.receiverId)
@@ -76,6 +85,69 @@ export function RecordSettlementDialog({ group, open, onOpenChange, initial = {}
     if (!form.amount || Number(form.amount) <= 0) errors.amount = 'Enter the amount actually handed over.'
     setFieldErrors(errors)
     if (Object.keys(errors).length) return
+
+    if (form.paymentMethod === 'razorpay') {
+      try {
+        setIsRazorpayPaying(true)
+        const orderRes = await createRazorpayOrder({
+          groupId: group.id,
+          receiverId: form.receiverId,
+          amount: form.amount,
+          currency,
+          note: form.note,
+        }).unwrap()
+
+        const orderData = orderRes?.data ?? orderRes
+
+        openRazorpayCheckout({
+          keyId: orderData.keyId,
+          orderId: orderData.orderId,
+          amountMinor: orderData.amountMinor,
+          currency: orderData.currency,
+          name: 'BalanceBook',
+          description: `Settlement to ${receiver?.user?.name ?? 'member'}`,
+          user: { name: payer?.user?.name, email: payer?.user?.email },
+          onSuccess: async (razorpayData) => {
+            try {
+              const verified = await verifyRazorpayPayment({
+                groupId: group.id,
+                receiverId: form.receiverId,
+                amount: form.amount,
+                currency,
+                note: form.note,
+                razorpayOrderId: razorpayData.razorpayOrderId,
+                razorpayPaymentId: razorpayData.razorpayPaymentId,
+                razorpaySignature: razorpayData.razorpaySignature,
+              }).unwrap()
+              toast.success(
+                'Payment verified via Razorpay!',
+                `Paid ₹${form.amount} immediately. Group ledger updated.`,
+              )
+              setIsRazorpayPaying(false)
+              onOpenChange?.(false)
+              onRecorded?.(verified)
+            } catch (verifyErr) {
+              setIsRazorpayPaying(false)
+              toast.error('Payment verification failed', verifyErr?.message || 'Could not verify payment signature.')
+            }
+          },
+          onFailure: (err) => {
+            setIsRazorpayPaying(false)
+            toast.info('Payment cancelled', err?.message || 'Razorpay checkout was dismissed.')
+          },
+        })
+        return
+      } catch (err) {
+        setIsRazorpayPaying(false)
+        const message = err?.message || 'Failed to initialize Razorpay payment.'
+        if (err?.code === 'VALIDATION_ERROR' || err?.status === 422) {
+          setFieldErrors({ amount: message })
+        } else {
+          setFieldErrors({ other: message })
+        }
+        return
+      }
+    }
 
     try {
       const body = buildSettlementBody({
@@ -227,8 +299,21 @@ export function RecordSettlementDialog({ group, open, onOpenChange, initial = {}
             <Button type="button" variant="outline" onClick={() => onOpenChange?.(false)}>
               Cancel
             </Button>
-            <Button type="submit" loading={createState.isLoading} disabled={Boolean(group?.isArchived)}>
-              <HandCoins aria-hidden /> Record payment
+            <Button
+              type="submit"
+              loading={createState.isLoading || razorpayOrderState.isLoading || isRazorpayPaying}
+              disabled={Boolean(group?.isArchived)}
+              className={form.paymentMethod === 'razorpay' ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : ''}
+            >
+              {form.paymentMethod === 'razorpay' ? (
+                <>
+                  <Zap className="size-4" aria-hidden /> Pay with Razorpay
+                </>
+              ) : (
+                <>
+                  <HandCoins aria-hidden /> Record payment
+                </>
+              )}
             </Button>
           </DialogFooter>
         </form>

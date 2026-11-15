@@ -40,7 +40,7 @@ const SETTLEMENT_STATUS = {
   DISPUTED: 'disputed',
   CANCELLED: 'cancelled',
 };
-const PAYMENT_METHODS = ['cash', 'bank_transfer', 'upi', 'card', 'other'];
+const PAYMENT_METHODS = ['cash', 'bank_transfer', 'upi', 'card', 'razorpay', 'other'];
 const NOTIFICATION_TYPES = [
   'group_invitation',
   'group_joined',

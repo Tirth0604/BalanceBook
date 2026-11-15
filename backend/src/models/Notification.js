@@ -22,7 +22,10 @@ const notificationSchema = new mongoose.Schema(
       virtuals: true,
       transform(doc, ret) {
         delete ret.__v;
-        if (ret._id) ret.id = String(ret._id);
+        if (ret._id) {
+          ret.id = String(ret._id);
+          delete ret._id;
+        }
         return ret;
       },
     },

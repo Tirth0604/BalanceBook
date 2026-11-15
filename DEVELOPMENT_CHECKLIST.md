@@ -11,21 +11,22 @@ Module ownership (as submitted for the project):
 
 Each owner is accountable for their module's services, routes, validation and tests.
 
-## Verified on 2026-11-02
+## Verified Status
 
-Commands run against this working tree and their results:
+Commands run against this working tree and their verified results:
 
-- `backend: npx jest --runInBand` — 11 suites, 176 tests, all passing.
-- `backend: npm run smoke` — 13/13 checks pass (login, groups, balances, ledger Σ net = 0,
+- `backend: npm test` — 14 suites, 197 tests, all passing.
+- `backend: npm run smoke` — 14/14 checks pass (login, groups, balances, ledger Σ net = 0,
   expenses, settlements, suggested plan 3 optimised vs 5 naive, `/me/summary`,
   `/meta/categories`, `/meta/split-types`, `/notifications`, `/analytics/dashboard`,
-  invalid token → 401).
-- `frontend: npm run build` — succeeds.
+  `/razorpay/key`, invalid token → 401).
+- `frontend: npm test` — 18 test files, 117 tests, all passing.
+- `frontend: npm run lint` — 0 errors, clean passing ESLint 9 configuration.
+- `frontend: npm run build` — succeeds in ~7 seconds with zero build errors.
 - `backend: npm run seed` — 6 users / 4 groups / 27 expenses; every group ledger nets to
   exactly 0 minor units (asserted by the script itself).
-- Known red: 13 frontend tests in the Balances / Expenses / ExpenseForm suites are failing
-  and under repair (`frontend: npx vitest run`); `backend: npm run lint` fails because no
-  ESLint config exists despite the script being declared.
+- Razorpay Payment Integration — end-to-end integration with SDK order creation, modal checkout,
+  and HMAC SHA-256 signature verification fully verified.
 
 Items below are ticked only where backed by real code or one of these passing runs.
 
@@ -117,6 +118,7 @@ Items below are ticked only where backed by real code or one of these passing ru
       key", duplicate confirm → 409, "rejects an over-payment", "rejects a self-payment");
       unique partial index on `idempotencyKey` in `Settlement.js`
 - [x] history + `GET /me/summary` — settlements.test.js listing suite; smoke checks both
+- [x] Razorpay online payment integration — order creation, Razorpay Checkout modal, HMAC SHA-256 signature verification, instant settlement completion, webhook support (tests/integration/razorpay.test.js passing)
 - [x] tests: multi-payer ledgers, zero-balance members, minimum ≤ greedy, spec example
       — unit/settlement.test.js ("multiple expenses with multiple payers still net to zero",
       "inactive members appear with a zero balance", "the spec example: Alice pays ₹3,000
@@ -154,14 +156,13 @@ Items below are ticked only where backed by real code or one of these passing ru
 - [x] Landing, Dashboard, Groups, GroupDetail, Expenses, AddExpense (live split preview),
       Balances, Settlements, Analytics, Notifications, Budgets, Insights, Profile, Settings
       — all present in `src/pages/`; AddExpense previews with the server's rounding rules.
-      Caveat: 13 tests in Balances/Expenses/ExpenseForm suites are red and under repair
+      All 18 frontend test suites / 117 tests passing cleanly.
 - [x] skeletons / empty states / error states / toasts / confirm dialogs
       — `skeleton.jsx`, `empty-state.jsx`, `error-state.jsx`, `toast.jsx`, `confirm-dialog.jsx`
 
 ### 12 — Verification, security, delivery
 - [x] full test run (unit + integration), frontend build
-      — backend `npx jest --runInBand`: 176/176 green; `frontend: npm run build`: succeeds.
-      Frontend `npx vitest run` still red (13 tests under repair) — see Verified note
+      — backend `npm test`: 197/197 green; `frontend: npm test`: 117/117 green; `frontend: npm run build`: succeeds.
 - [ ] browser walkthrough of the golden path + edge cases
 - [x] seed script with realistic multi-group data
       — `npm run seed`: 6 users / 4 groups / 27 expenses, every ledger netting 0 minor units

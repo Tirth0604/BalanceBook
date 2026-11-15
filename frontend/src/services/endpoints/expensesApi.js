@@ -51,7 +51,7 @@ export const expensesApi = createApi({
       providesTags: (_r, _e, expenseId) => [{ type: 'ExpenseDetail', id: String(expenseId) }],
     }),
     updateExpense: builder.mutation({
-      query: ({ expenseId, groupId, body }) => ({
+      query: ({ expenseId, body }) => ({
         url: `/expenses/${expenseId}`,
         method: 'PATCH',
         body,
@@ -70,7 +70,7 @@ export const expensesApi = createApi({
       ],
     }),
     deleteExpense: builder.mutation({
-      query: ({ expenseId, groupId }) => ({ url: `/expenses/${expenseId}`, method: 'DELETE' }),
+      query: ({ expenseId }) => ({ url: `/expenses/${expenseId}`, method: 'DELETE' }),
       invalidatesTags: (_r, _e, { expenseId, groupId }) => [
         { type: 'Expense', id: 'LIST' },
         { type: 'ExpenseDetail', id: String(expenseId) },

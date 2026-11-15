@@ -64,4 +64,32 @@ const history = asyncHandler(async (req, res) => {
   return ApiResponse.send(res, groups);
 });
 
-module.exports = { record, confirm, reject, dispute, cancel, listForGroup, listForMe, history };
+const createRazorpayOrder = asyncHandler(async (req, res) => {
+  const body = req.validatedBody;
+  const order = await settlementService.createRazorpayOrder(body, { viewerId: req.userId });
+  return ApiResponse.send(res, order);
+});
+
+const verifyRazorpayPayment = asyncHandler(async (req, res) => {
+  const body = req.validatedBody;
+  const settlement = await settlementService.verifyAndCompleteRazorpaySettlement(body, { viewerId: req.userId });
+  return ApiResponse.send(res, settlement);
+});
+
+const razorpayWebhook = asyncHandler(async (req, res) => {
+  return ApiResponse.send(res, { received: true });
+});
+
+module.exports = {
+  record,
+  confirm,
+  reject,
+  dispute,
+  cancel,
+  listForGroup,
+  listForMe,
+  history,
+  createRazorpayOrder,
+  verifyRazorpayPayment,
+  razorpayWebhook,
+};
